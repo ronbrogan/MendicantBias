@@ -65,7 +65,7 @@ async def announce(record):
                                   
 async def maintainTwitchNotifs():
     while True:
-        await asyncio.sleep(10)
+        await asyncio.sleep(1220)
         print("looking for streams to post")
         responses = []
         postedStreamList = []
