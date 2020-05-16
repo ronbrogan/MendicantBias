@@ -144,7 +144,7 @@ async def lookForRecord():
             print("checking records")
             newRecords = await apiRecentWRs()
             for record in newRecords:
-                if record['id'] not in list(map(lambda x: x.id, oldRecords)):
+                if record['id'] not in list(map(lambda x: x['id'], oldRecords)):
                     print("announcing!")
                     await announce(record)
         except:
