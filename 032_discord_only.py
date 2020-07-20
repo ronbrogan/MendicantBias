@@ -201,7 +201,9 @@ async def getPoints(pb, wr):
     wr_mins = int(wr_split[0])
     wr_secs = int(wr_split[1])
     wr_comb = wr_secs + 60 * wr_mins
-    points = round((0.008 * math.exp(4.8284*(wr_comb/pb_comb)) * 100, 1))
+    points = round((0.008 * math.exp(4.8284*(wr_comb/pb_comb)) * 100), 1)
+    print(points)
+    
     print(str("Your PB of " + pb + " against "  + wr + " is worth " + str(points) + " points"))
     return(str("Your PB of " + pb + " against "  + wr + " is worth " + str(points) + " points"))
 
