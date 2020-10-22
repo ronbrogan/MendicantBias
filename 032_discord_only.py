@@ -13,6 +13,7 @@ import sys
 import datetime
 import time
 import math
+import math
 
 print(discord.__version__)
 mb = Bot(command_prefix='!') # Creates the main bot object - asynchronous
@@ -125,9 +126,10 @@ async def announce(record):
 		prevVidUrl = prev_record["vid"]
 		prevPlayers = parsePlayers(prev_record)
 		timeDiff = str(convertTimes(record["prev_record"]["run_time"]-record["run_time"]))
+		prevTimeStanding = getTimeStood(record, prev_record)
 		oldestRank = findOldestRank(prev_record)
 		#split announcement for ease of printing, logging
-		announcement = f":trophy: **new record!**\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nset by: {player}\n\nPrevious Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nbeaten by {timeDiff}\nIt was the {oldestRank} oldest record"
+		announcement = f":trophy: **new record!**\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nset by: {player}\n\nPrevious Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nbeaten by {timeDiff}\nStood for {prevTimeStanding}, it was the {oldestRank} oldest record"
 		print(announcement)
 		embedlink = discord.embed(description=announcement, color=0xff0000)
 		# old working method but ugly # embedlink = discord.embed(description=":trophy: **new record!**\n%s %s - [%s %s](%s) | [%s](%s)\nset by: %s\n\nprevious record:\n[%s](%s) by %s\nbeaten by %s" % (record["game_name"], record["difficulty_name"], record["level_name"], iscoop(record), record["il_board_url"], record["time"], str(record["vid"]), parseplayers(record), record["prev_record"]["time"], str(record["prev_record"]["vid"]), parseplayers(record["prev_record"]), str(converttimes(record["prev_record"]["run_time"]-record["run_time"]))), color=0xff0000)
@@ -309,6 +311,18 @@ def ordinalize(rank):
 		# the second parameter is a default.
 		suffix = SUFFIXES.get(rank % 10, 'th')
 	return str(rank) + suffix
+
+def getTimeStood(record, prev_record):
+	secs = record["timestamp"] - prev_record["timestamp"]
+    days = secs//86400
+    hours = (secs - days*86400)//3600
+    minutes = (secs - days*86400 - hours*3600)//60
+    seconds = secs - days*86400 - hours*3600 - minutes*60
+    result = ("{0} day{1}, ".format(days, "s" if days!=1 else "") if days else "") + \
+    ("{0} hour{1}, ".format(hours, "s" if hours!=1 else "") if hours else "") + \
+    ("{0} minute{1}, ".format(minutes, "s" if minutes!=1 else "") if minutes else "") + \
+    ("{0} second{1}, ".format(seconds, "s" if seconds!=1 else "") if seconds else "")
+    return result
 
 async def raceCountdown(ret=False):
 	### Replaces the top message in #live-streams with a countdown to an event, if RACE is set
