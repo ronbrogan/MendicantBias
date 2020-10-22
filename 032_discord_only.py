@@ -255,7 +255,7 @@ async def lookForRecord():
 	### It then calls the announce() function to push it to the Discord channel
 
 	while True:
-		await asyncio.sleep(10) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
+		await asyncio.sleep(120) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
 		try:
 			oldRecords = await savedRecentWRs()
 			print("checking records")
