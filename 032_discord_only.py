@@ -21,7 +21,8 @@ TOKEN = open("TOKEN.txt", "r").readline() # reads the token used by the bot from
 ENDPOINT = "https://haloruns.com/api/" # API ENDPOINT for HaloRuns.com
 NOTIFS_CHANNEL_ID = 491719347929219072 # Hard-coded #live-streams channel - need to change this if the channel gets replaced
 RECORDS_CHANNEL_ID = 600075722232692746 # Hard-coded #wr-runs channel - need to change this if the channel gets replaced
-TEST_CHHANNEL = 718209912341135374 # Wackee's test channel
+TEST_CHANNEL = 718209912341135374 # Wackee's test channel
+#RECORDS_CHANNEL_ID = TEST_CHANNEL
 NO_STREAMS_TEXT = "Nobody is currently streaming" + "<:NotLikeThis:257718094049443850>" # Default text used when there are no current streamers
 SOME_STREAMS_TEXT = "CURRENTLY LIVE:\n- - - - - - - - - - - - -" # Default text used when there are some current streamers
 TUT_ENDPOINT = "haloruns.info/tutorial?id=" # Once we get tutorials off the ground, this can be used to add commands for any number of tutorials present on the .info site
@@ -112,7 +113,7 @@ async def announce(record):
 
 	recordsChannel = mb.get_channel(RECORDS_CHANNEL_ID)
 	try:
-		# new method, trying to be cleaner about what data is being used; hopefully to be cleaned up more, maybe learn to create better objects for less json
+	# new method, trying to be cleaner about what data is being used; hopefully to be cleaned up more, maybe learn to create better objects for less json
 		prev_record = record["prev_record"]#better to split the previous record before messing with the json,^ again might wanna learn objects
 		game = record["game_name"]
 		diff = record["difficulty_name"]
@@ -122,24 +123,28 @@ async def announce(record):
 		runTime = record["time"]
 		vidUrl = record["vid"]
 		players = parsePlayers(record)
-		prevRunTime = prev_record["time"]
-		prevVidUrl = prev_record["vid"]
-		prevPlayers = parsePlayers(prev_record)
-		timeDiff = str(convertTimes(record["prev_record"]["run_time"]-record["run_time"]))
-		prevTimeStanding = getTimeStood(record, prev_record)
-		oldestRank = findOldestRank(prev_record)
+		if prev_record != None:
+			prevRunTime = prev_record["time"]
+			prevVidUrl = prev_record["vid"]
+			prevPlayers = parsePlayers(prev_record)
+			timeDiff = str(convertTimes(record["prev_record"]["run_time"]-record["run_time"]))
+			prevTimeStanding = getTimeStood(record, prev_record)
+			oldestRank = ordinalize(findOldestRank(prev_record))
 		#split announcement for ease of printing, logging
-		announcement = f":trophy: **new record!**\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nset by: {player}\n\nPrevious Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nbeaten by {timeDiff}\nStood for {prevTimeStanding}, it was the {oldestRank} oldest record"
+		if prev_record != None:
+			announcement = f":trophy: **New Record!**\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}\n\nPrevious Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nBeaten by {timeDiff}\nStanding for {prevTimeStanding},\n it was the {oldestRank} oldest record"
+		else:
+		#if doesn't have previous:
+			announcement = f":trophy: **NEW RECORD!**\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}"
 		print(announcement)
-		embedlink = discord.embed(description=announcement, color=0xff0000)
-		# old working method but ugly # embedlink = discord.embed(description=":trophy: **new record!**\n%s %s - [%s %s](%s) | [%s](%s)\nset by: %s\n\nprevious record:\n[%s](%s) by %s\nbeaten by %s" % (record["game_name"], record["difficulty_name"], record["level_name"], iscoop(record), record["il_board_url"], record["time"], str(record["vid"]), parseplayers(record), record["prev_record"]["time"], str(record["prev_record"]["vid"]), parseplayers(record["prev_record"]), str(converttimes(record["prev_record"]["run_time"]-record["run_time"]))), color=0xff0000)
+	embedLink = discord.Embed(description=announcement, color=0xff0000)
+		# old working method but ugly # embedlink = discord.Embed(description=":trophy: **new record!**\n%s %s - [%s %s](%s) | [%s](%s)\nset by: %s\n\nprevious record:\n[%s](%s) by %s\nbeaten by %s" % (record["game_name"], record["difficulty_name"], record["level_name"], iscoop(record), record["il_board_url"], record["time"], str(record["vid"]), parseplayers(record), record["prev_record"]["time"], str(record["prev_record"]["vid"]), parseplayers(record["prev_record"]), str(converttimes(record["prev_record"]["run_time"]-record["run_time"]))), color=0xff0000)
 	except:
 		embedLink = discord.Embed(description=":trophy: **New Record!**\n%s %s - [%s %s](%s) | [%s](%s)\nSet by: %s" % (record["game_name"], record["difficulty_name"], record["level_name"], isCoop(record), record["il_board_url"], record["time"], str(record["vid"]), parsePlayers(record)), color=0xFF0000)
 	try:
 		await recordsChannel.send(embed=embedLink)
 	except:
 		print("record announcement failed")
-								  
 async def maintainTwitchNotifs():
 	### Adds any streams in the current stream list that are not present in the #live-streams channel
 	### Then it calls the function to remove what doesn't belong any longer
@@ -250,7 +255,7 @@ async def lookForRecord():
 	### It then calls the announce() function to push it to the Discord channel
 
 	while True:
-		await asyncio.sleep(120) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
+		await asyncio.sleep(10) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
 		try:
 			oldRecords = await savedRecentWRs()
 			print("checking records")
@@ -314,15 +319,15 @@ def ordinalize(rank):
 
 def getTimeStood(record, prev_record):
 	secs = record["timestamp"] - prev_record["timestamp"]
-    days = secs//86400
-    hours = (secs - days*86400)//3600
-    minutes = (secs - days*86400 - hours*3600)//60
-    seconds = secs - days*86400 - hours*3600 - minutes*60
-    result = ("{0} day{1}, ".format(days, "s" if days!=1 else "") if days else "") + \
-    ("{0} hour{1}, ".format(hours, "s" if hours!=1 else "") if hours else "") + \
-    ("{0} minute{1}, ".format(minutes, "s" if minutes!=1 else "") if minutes else "") + \
-    ("{0} second{1}, ".format(seconds, "s" if seconds!=1 else "") if seconds else "")
-    return result
+	days = secs//86400
+	hours = (secs - days*86400)//3600
+	minutes = (secs - days*86400 - hours*3600)//60
+	seconds = secs - days*86400 - hours*3600 - minutes*60
+	result = ("{0} day{1}, ".format(days, "s" if days!=1 else "") if days else "") + \
+	("{0} hour{1}, ".format(hours, "s" if hours!=1 else "") if hours else "") + \
+	("{0} minute{1}, ".format(minutes, "s" if minutes!=1 else "") if minutes else "") + \
+	("{0} second{1}, ".format(seconds, "s" if seconds!=1 else "") if seconds else "")
+	return result.rstrip(", ")
 
 async def raceCountdown(ret=False):
 	### Replaces the top message in #live-streams with a countdown to an event, if RACE is set
