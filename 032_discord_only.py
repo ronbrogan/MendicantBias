@@ -137,7 +137,7 @@ async def announce(record):
 		#if doesn't have previous:
 			announcement = f":trophy: **NEW RECORD!**\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}"
 		print(announcement)
-	embedLink = discord.Embed(description=announcement, color=0xff0000)
+		embedLink = discord.Embed(description=announcement, color=0xff0000)
 		# old working method but ugly # embedlink = discord.Embed(description=":trophy: **new record!**\n%s %s - [%s %s](%s) | [%s](%s)\nset by: %s\n\nprevious record:\n[%s](%s) by %s\nbeaten by %s" % (record["game_name"], record["difficulty_name"], record["level_name"], iscoop(record), record["il_board_url"], record["time"], str(record["vid"]), parseplayers(record), record["prev_record"]["time"], str(record["prev_record"]["vid"]), parseplayers(record["prev_record"]), str(converttimes(record["prev_record"]["run_time"]-record["run_time"]))), color=0xff0000)
 	except:
 		embedLink = discord.Embed(description=":trophy: **New Record!**\n%s %s - [%s %s](%s) | [%s](%s)\nSet by: %s" % (record["game_name"], record["difficulty_name"], record["level_name"], isCoop(record), record["il_board_url"], record["time"], str(record["vid"]), parsePlayers(record)), color=0xFF0000)
