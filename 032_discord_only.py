@@ -13,22 +13,27 @@ import sys
 import datetime
 import time
 import math
+
 print(discord.__version__)
-mb = Bot(command_prefix='!')
-TOKEN = open("TOKEN.txt", "r").readline()
-Streampoint = 0
-Endpoint = "https://haloruns.com/api/"
-NOTIFS_CHANNEL_ID = 491719347929219072
-RECORDS_CHANNEL_ID = 600075722232692746 #HR
-#RECORDS_CHANNEL_ID = 718209912341135374 # MH
-NO_STREAMS_TEXT = "Nobody is currently streaming" + "<:NotLikeThis:257718094049443850>"
-SOME_STREAMS_TEXT = "CURRENTLY LIVE:\n- - - - - - - - - - - - -"
+mb = Bot(command_prefix='!') # Creates the main bot object - asynchronous
+TOKEN = open("TOKEN.txt", "r").readline() # reads the token used by the bot from the local directory
+ENDPOINT = "https://haloruns.com/api/" # API ENDPOINT for HaloRuns.com
+NOTIFS_CHANNEL_ID = 491719347929219072 # Hard-coded #live-streams channel - need to change this if the channel gets replaced
+RECORDS_CHANNEL_ID = 600075722232692746 # Hard-coded #wr-runs channel - need to change this if the channel gets replaced
+TEST_CHHANNEL = 718209912341135374 # Wackee's test channel
+NO_STREAMS_TEXT = "Nobody is currently streaming" + "<:NotLikeThis:257718094049443850>" # Default text used when there are no current streamers
+SOME_STREAMS_TEXT = "CURRENTLY LIVE:\n- - - - - - - - - - - - -" # Default text used when there are some current streamers
+TUT_ENDPOINT = "haloruns.info/tutorial?id=" # Once we get tutorials off the ground, this can be used to add commands for any number of tutorials present on the .info site
+
+## Flags - Used to turn conditional behaviors on or off - crude, and should upgrade functionality
 RELAY = False
 RACE = False
-tutorial_fragment = "haloruns.info/tutorial?id="
 
 @mb.event
 async def on_message(message):
+	### This needs to STOP - gotta find a way to make this cleaner
+	### Numerous behaviors based on conditions present in any message the bot has access to - some memes, some links, some tools
+
 	if message.content.lower() == ".sc_fling":
 		await message.channel.send(
 			" It is known. It skips the plasmas from Goldie so its not really worth. It would save time in coop or if you picked up plasmas before the fling."
@@ -78,11 +83,11 @@ async def on_message(message):
 			if game == "h5":
 				await message.channel.send("https://haloruns.com/timeCalc/h5") 
 
-async def getProfile(user):
-	return requests.get(str(Endpoint + "users/" + user)).json()
-
 async def apiRecentWRs():
-	records = requests.get(str(Endpoint + "records/recent" + "/12")).json()
+	### Returns the most recent records list, and replaces the locally stored records list with a new one.
+	###NOTE: this means there is no aggregation over time - leaving that to HaloRuns.com
+
+	records = requests.get(str(ENDPOINT + "records/recent" + "/12")).json()
 	file = open("records.json", "w+")
 	json.dump(records, file)
 	file.truncate()
@@ -90,6 +95,8 @@ async def apiRecentWRs():
 	return records
 
 async def apiStreams():
+	### Returns all valid streams, mirrors the HaloRuns.com Stream List
+
 	response = requests.get(str(BETA_ENDPOINT + "streams")).json().content.decode("utf-8")
 	streams = []
 	for item in response:
@@ -97,21 +104,24 @@ async def apiStreams():
 	return streams
 
 async def savedRecentWRs():
+	### Returns the locally stored records list, or creates one from the haloruns API if not present before returning
+
 	try:
 		oldRecords = json.load(open("records.json", "r"))
 	except :
-		oldRecords = json.load(requests.get(str(Endpoint + "recentRecords" + ResponseFormat + "&showTimestamps=1")).json())
-		file = open("records.json", "w+")
-		json.dump(oldRecords, file)
-		file.truncate()
-		file.close()
+		oldRecords = apiRecentWRs()
 		print("reset recent world records")
 	return oldRecords
 
 async def announce(record):
-	#record["vid"] = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+	### Announces a new record, according to the announcement string; Hoping to add time the previous record stood, as well as what rank in Oldest Records it was
+
+	#record["vid"] = "https://www.youtube.com/watch?v=dQw4w9WgXcQ" test vid link, dont think we need it anymore
+
 	recordsChannel = mb.get_channel(RECORDS_CHANNEL_ID)
 	try:
+		# new method, trying to be cleaner about what data is being used; hopefully to be cleaned up more, maybe learn to create better objects for less json
+		prev_record = record["prev_record"]#better to split the previous record before messing with the json,^ again might wanna learn objects
 		game = record["game_name"]
 		diff = record["difficulty_name"]
 		level = record["level_name"]
@@ -120,32 +130,34 @@ async def announce(record):
 		runTime = record["time"]
 		vidUrl = record["vid"]
 		players = parsePlayers(record)
-		prev_record = record["prev_record"]
 		prevRunTime = prev_record["time"]
 		prevVidUrl = prev_record["vid"]
 		prevPlayers = parsePlayers(prev_record)
 		timeDiff = str(convertTimes(record["prev_record"]["run_time"]-record["run_time"]))
-		#new tech?
-		embedlink = discord.embed(description=f":trophy: **new record!**\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nset by: {player}\n\nprevious record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nbeaten by {timeDiff}", color=0xff0000)
-		# working but ugly # embedlink = discord.embed(description=":trophy: **new record!**\n%s %s - [%s %s](%s) | [%s](%s)\nset by: %s\n\nprevious record:\n[%s](%s) by %s\nbeaten by %s" % (record["game_name"], record["difficulty_name"], record["level_name"], iscoop(record), record["il_board_url"], record["time"], str(record["vid"]), parseplayers(record), record["prev_record"]["time"], str(record["prev_record"]["vid"]), parseplayers(record["prev_record"]), str(converttimes(record["prev_record"]["run_time"]-record["run_time"]))), color=0xff0000)
-		#print(":trophy: **new record!**\n%s %s - [%s:](%s) [%s](%s)\nset by: [%s](%s)\n\nprevious record:\n[%s](%s) by:\n %s\nbeaten by %s" % (record["game_name"], record["difficulty_name"], record["level_name"], record["il_board_url"], iscoop(record), record["time"], str(record["vid"]), parseplayers(record), record["prev_record"]["time"], str(record["prev_record"]["vid"]), parseplayers(record["prev_record"]), str(converttimes(record["prev_record"]["run_time"]-record["run_time"]))))
-	except:#                                                     game   diff   3xcat         2xtime         user                         2xtime   
+		#split announcement for ease of printing, logging
+		announcement = f":trophy: **new record!**\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nset by: {player}\n\nprevious record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nbeaten by {timeDiff}"
+		print(announcement)
+		embedlink = discord.embed(description=announcement, color=0xff0000)
+		# old working method but ugly # embedlink = discord.embed(description=":trophy: **new record!**\n%s %s - [%s %s](%s) | [%s](%s)\nset by: %s\n\nprevious record:\n[%s](%s) by %s\nbeaten by %s" % (record["game_name"], record["difficulty_name"], record["level_name"], iscoop(record), record["il_board_url"], record["time"], str(record["vid"]), parseplayers(record), record["prev_record"]["time"], str(record["prev_record"]["vid"]), parseplayers(record["prev_record"]), str(converttimes(record["prev_record"]["run_time"]-record["run_time"]))), color=0xff0000)
+	except:
 		embedLink = discord.Embed(description=":trophy: **New Record!**\n%s %s - [%s %s](%s) | [%s](%s)\nSet by: %s" % (record["game_name"], record["difficulty_name"], record["level_name"], isCoop(record), record["il_board_url"], record["time"], str(record["vid"]), parsePlayers(record)), color=0xFF0000)
-		#print(":trophy: **New Record!**\n%s %s - [%s] %s: [%s](%s)\nSet by: %s" % (record["game_name"], record["difficulty_name"], record["level_name"], record["il_board_url"], isCoop(record), record["time"], str(record["vid"]), parsePlayers(record)))
 	try:
 		await recordsChannel.send(embed=embedLink)
 	except:
 		print("record announcement failed")
 								  
 async def maintainTwitchNotifs():
+	### Adds any streams in the current stream list that are not present in the #live-streams channel
+	### This ought to be changed almost entirely, i hate looking at this abomination
+
 	while True:
-		await asyncio.sleep(10)
+		await asyncio.sleep(10) # Update interval, seconds
 		streams = []
 		print("looking for streams to post")
 		responses = []
 		postedStreamList = []
-##        try:
-		streamsData = requests.get(str(Endpoint + "streams"))
+#        try:
+		streamsData = requests.get(str(ENDPOINT + "streams"))
 		try:
 			streams = streamsData.json()
 		except:
@@ -158,39 +170,40 @@ async def maintainTwitchNotifs():
 		print("LOGGING", "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE\n")
 		log_string = "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE\n"
 		log.write(log_string)
-##        print(streams)
+#        print(streams)
 		for stream in streams:
 			log.write(str(stream["stream"] + "\n"))
 		log.close()
-##        except:
-##            print("stream pull failed")
+#        except:
+#            print("stream pull failed")
 		postedStreams = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first = True).flatten()
 		postedStreams = postedStreams[1:]
 		for stream in postedStreams:
 			postedStreamList.append(stream.content)
-##        try:
+#        try:
 		if streams != []:
-##            config = loadConfig()
+#            config = loadConfig()
 			for stream in streams:
 				if stream["stream"] not in postedStreamList:
-##                        if config[stream["#" + "stream".lower()]]["muted"] == False:
+#                        if config[stream["#" + "stream".lower()]]["muted"] == False:
 					responses.append(stream["stream"])
 			streamsChannel = mb.get_channel(NOTIFS_CHANNEL_ID)
 			if responses != "":
 				for response in responses:
 						await streamsChannel.send(response)
-##        except:
-##            print("Failed posting new streams")
+#        except:
+#            print("Failed posting new streams")
 		parsedStreams = []
 		for stream in streams:
 			parsedStreams.append(stream["stream"])
 		await purgeNotStreams(parsedStreams)
 
 async def purgeNotStreams(streams):
-	flat = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
-##    await relayCountdown()
-	oldestMessage = flat[0]
-##    streams = {}
+	### Removes any streams present in the #live-streams channel that are not in the current stream list
+
+	flat = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten() # returns a flattened ordered list of all present messages in the channel
+#    await relayCountdown() # idek lol, think this is here because the channel could flicker if not checked before removal of streams
+	oldestMessage = flat[0] # this identifies the top message, because it's used for ^ periodic messages
 	if streams != []:
 		for stream in streams:
 			stream = stream.rstrip()
@@ -202,9 +215,6 @@ async def purgeNotStreams(streams):
 						await messageObject.edit(content = SOME_STREAMS_TEXT)
 				else:
 					print("Found streams, continuing...")
-##            else:
-####                config["#" + messageObject.content.split("/")[-1].lower()]["muted"] == True
-##                await messageObject.delete()
 			if messageObject.content not in streams:
 				if messageObject == oldestMessage:
 					pass
@@ -221,24 +231,10 @@ async def purgeNotStreams(streams):
 			else:
 				await messageObject.delete()
 
-async def raceCountdown(ret=False):
-	dt = datetime.datetime
-	raceStartTime = dt(year=2020, month=8, day=25, hour=15)
-	if ret == True:
-		flat = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
-		now = dt.now()
-		delta = raceStartTime - now
-		return str(':'.join(str(delta).split(':')[:2])) + " until the HSL A1 Race begins!\nWatch [Here](https://www.twitch.tv/HaloRaces)"
-	while True:
-		await asyncio.sleep(10)
-		if RACE==True:
-			flat = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
-			now = dt.now()
-			delta = raceStartTime - now
-			oldestMessage = flat[0]            
-			await oldestMessage.edit(content = str(':'.join(str(delta).split(':')[:2])) + " until the HSL A1 Race!")
-
 async def getPoints(pb, wr):
+	### Returns the description field for the ".points" command
+	### FIX: make this work either way, and with hours
+
 	print("checking points", pb, wr)
 	pb_split = pb.split(":")
 	pb_mins = int(pb_split[0])
@@ -255,8 +251,11 @@ async def getPoints(pb, wr):
 	return(str(help_string + "Your PB of " + pb + " against "  + wr + " is worth " + str(points) + " points"))
 
 async def lookForRecord():
+	### Upon a new record being added to the HR database, this catches it by checking the API against the locally stored records
+	### It then calls the announce() function to push it to the Discord channel
+
 	while True:
-		await asyncio.sleep(120)
+		await asyncio.sleep(120) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
 		try:
 			oldRecords = await savedRecentWRs()
 			print("checking records")
@@ -271,57 +270,100 @@ async def lookForRecord():
 		except:
 			pass
 
+#wackee's method
+#def convertTimes(seconds): 
+#	seconds = seconds % (24 * 3600) 
+#	hour = seconds // 3600
+#	seconds %= 3600
+#	minutes = seconds // 60
+#	seconds %= 60
+#	if hour == 0:
+#		if minutes == 00:
+#			return ":%02d" % (seconds)
+#		else:
+#			return "%02d:%02d" % (minutes, seconds)
+#	else:
+#		return "%d:%02d:%02d" % (hour, minutes, seconds)
+
+# Backflip's method
+#Wackee - NOTE: unlikely, but wouldn't this break if there's over an hour timesave?
+def convertTimes(seconds):
+        return '%d:%02d' % (seconds // 60 if seconds > 60 else 0, seconds % 60)
+
 def isCoop(record):
 	return 'Co-op' if record["is_coop"] else 'Solo'
 
-def fixUrl(word):
-	newWord = "<" + word + ">"
-	return newWord
+async def raceCountdown(ret=False):
+	### Replaces the top message in #live-streams with a countdown to an event, if RACE is set
 
-def fixEscape(string):
-	decoded = bytes(string, "utf-8").decode("unicode_escape")
-	return decoded
+	dt = datetime.datetime
+	raceStartTime = dt(year=2020, month=8, day=25, hour=15)
+	if ret == True:
+		flat = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
+		now = dt.now()
+		delta = raceStartTime - now
+		return str(':'.join(str(delta).split(':')[:2])) + " until the HSL A1 Race begins!\nWatch [Here](https://www.twitch.tv/HaloRaces)"
+	while True:
+		await asyncio.sleep(10)
+		if RACE==True:
+			flat = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
+			now = dt.now()
+			delta = raceStartTime - now
+			oldestMessage = flat[0]            
+			await oldestMessage.edit(content = str(':'.join(str(delta).split(':')[:2])) + " until the HSL A1 Race!")
 
-def un2(game):
-	if game == "Halo 2 MCC":
-		return "Halo: Master Chief Collection"
-	else:
-		return game
+# unnecessary? or old or bad idk
 
-def infoStream(stream):
-	splitStream = stream.split("\n")
-	print(splitStream)
-	streamEr = (" ").join(splitStream[0].split("is live!")[0])
-	streamGame = (" ").join(splitStream[1].split(" ")[1:])
-	streamTitle = splitStream[2]
-	print(streamEr, streamGame, streamTitle)
-	return (streamEr, streamGame, streamTitle)
+#def fixUrl(word):
+#	newWord = "<" + word + ">"
+#	return newWord
 
-def streams(streams):
-	streamList = []
-	for stream in streams:
-		streamList.append(stream["stream"])
-	return streams
+#def fixEscape(string):
+#	decoded = bytes(string, "utf-8").decode("unicode_escape")
+#	return decoded
 
-def loadConfig():
-	file = json.load(open("config.json", "r+"))
-	return file
+#def un2(game):
+#	if game == "Halo 2 MCC":
+#		return "Halo: Master Chief Collection"
+#	else:
+#		return game
 
+#async def getProfile(user):
+#	return requests.get(str(ENDPOINT + "users/" + user)).json()
+	
+#def infoStream(stream):
+#	splitStream = stream.split("\n")
+#	print(splitStream)
+#	streamEr = (" ").join(splitStream[0].split("is live!")[0])
+#	streamGame = (" ").join(splitStream[1].split(" ")[1:])
+#	streamTitle = splitStream[2]
+#	print(streamEr, streamGame, streamTitle)
+#	return (streamEr, streamGame, streamTitle)
 
-def parseStream(stream):
-	val = URLValidator()
-	newTitleList = []
-	title = fixEscape(stream["title"])
-	print(title)
-	for word in stream["title"].split(" "):
-		try:
-			val(word)
-			newTitleList.append(fixUrl(word))
-		except:
-			newTitleList.append(word)
-	newTitle = " ".join(newTitleList)
-	streamParse = "%s is live!\nPlaying %s\n%s\n%s" % (stream["name"], un2(stream["game"]), newTitle, stream["stream"])
-	return streamParse
+#def streams(streams):
+#	streamList = []
+#	for stream in streams:
+#		streamList.append(stream["stream"])
+#	return streams
+
+#def loadConfig():
+#	file = json.load(open("config.json", "r+"))
+#	return file
+
+#def parseStream(stream):
+#	val = URLValidator()
+#	newTitleList = []
+#	title = fixEscape(stream["title"])
+#	print(title)
+#	for word in stream["title"].split(" "):
+#		try:
+#			val(word)
+#			newTitleList.append(fixUrl(word))
+#		except:
+#			newTitleList.append(word)
+#	newTitle = " ".join(newTitleList)
+#	streamParse = "%s is live!\nPlaying %s\n%s\n%s" % (stream["name"], un2(stream["game"]), newTitle, stream["stream"])
+#	return streamParse
 
 def buildPlayerMD(player):
 	print(str("[%s](https://haloruns.com/profiles/%s)" % (player, player)))
@@ -334,22 +376,7 @@ def parsePlayers(record):
 			players.append(buildPlayerMD(player))
 	return " | ".join(players)
 
-def convertTimes(seconds): 
-	seconds = seconds % (24 * 3600) 
-	hour = seconds // 3600
-	seconds %= 3600
-	minutes = seconds // 60
-	seconds %= 60
-	if hour == 0:
-		if minutes == 00:
-			return ":%02d" % (seconds)
-		else:
-			return "%02d:%02d" % (minutes, seconds)
-	else:
-		return "%d:%02d:%02d" % (hour, minutes, seconds)
 
-def convertTimes(seconds):
-        return '%d:%02d' % (seconds // 60 if seconds > 60 else 0, seconds % 60)
 
 mb.loop.create_task(raceCountdown())
 mb.loop.create_task(lookForRecord())
