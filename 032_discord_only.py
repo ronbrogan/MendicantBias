@@ -94,15 +94,6 @@ async def apiRecentWRs():
 	file.close()
 	return records
 
-async def apiStreams():
-	### Returns all valid streams, mirrors the HaloRuns.com Stream List
-
-	response = requests.get(str(BETA_ENDPOINT + "streams")).json().content.decode("utf-8")
-	streams = []
-	for item in response:
-		streams.append(item)
-	return streams
-
 async def savedRecentWRs():
 	### Returns the locally stored records list, or creates one from the haloruns API if not present before returning
 
@@ -134,8 +125,9 @@ async def announce(record):
 		prevVidUrl = prev_record["vid"]
 		prevPlayers = parsePlayers(prev_record)
 		timeDiff = str(convertTimes(record["prev_record"]["run_time"]-record["run_time"]))
+		oldestRank = findOldestRank(prev_record)
 		#split announcement for ease of printing, logging
-		announcement = f":trophy: **new record!**\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nset by: {player}\n\nprevious record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nbeaten by {timeDiff}"
+		announcement = f":trophy: **new record!**\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nset by: {player}\n\nPrevious Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nbeaten by {timeDiff}\nIt was the {oldestRank} oldest record"
 		print(announcement)
 		embedlink = discord.embed(description=announcement, color=0xff0000)
 		# old working method but ugly # embedlink = discord.embed(description=":trophy: **new record!**\n%s %s - [%s %s](%s) | [%s](%s)\nset by: %s\n\nprevious record:\n[%s](%s) by %s\nbeaten by %s" % (record["game_name"], record["difficulty_name"], record["level_name"], iscoop(record), record["il_board_url"], record["time"], str(record["vid"]), parseplayers(record), record["prev_record"]["time"], str(record["prev_record"]["vid"]), parseplayers(record["prev_record"]), str(converttimes(record["prev_record"]["run_time"]-record["run_time"]))), color=0xff0000)
@@ -148,6 +140,7 @@ async def announce(record):
 								  
 async def maintainTwitchNotifs():
 	### Adds any streams in the current stream list that are not present in the #live-streams channel
+	### Then it calls the function to remove what doesn't belong any longer
 	### This ought to be changed almost entirely, i hate looking at this abomination
 
 	while True:
@@ -292,6 +285,30 @@ def convertTimes(seconds):
 
 def isCoop(record):
 	return 'Co-op' if record["is_coop"] else 'Solo'
+
+def findOldestRank(record):
+	### Returns the rank describing how old the record is
+	#Backflip's suggestion:
+	#return len(list(filter(lambda pastRecord: pastRecord["timestamp"] <= record["timestamp"], requests.get(str(ENDPOINT + "records/oldest")).json()))) + 1
+	try:
+		recordsByOldest = requests.get(str(ENDPOINT + "records/oldest")).json()
+		for index, item in enumerate(recordsByOldest, 1): # clever optional argument to help with ordinalizing
+			if record["timestamp"] <= item["timestamp"]:
+				return index
+	except:
+		print("W E L L - oldest rank check failed")
+
+def ordinalize(rank):
+	### yoinked
+	SUFFIXES = {1: 'st', 2: 'nd', 3: 'rd'}
+	# I'm checking for 10-20 because those are the digits that
+	# don't follow the normal counting scheme. 
+	if 10 <= rank % 100 <= 20:
+		suffix = 'th'
+	else:
+		# the second parameter is a default.
+		suffix = SUFFIXES.get(rank % 10, 'th')
+	return str(rank) + suffix
 
 async def raceCountdown(ret=False):
 	### Replaces the top message in #live-streams with a countdown to an event, if RACE is set
