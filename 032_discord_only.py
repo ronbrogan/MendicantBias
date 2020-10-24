@@ -22,7 +22,7 @@ ENDPOINT = "https://haloruns.com/api/" # API ENDPOINT for HaloRuns.com
 NOTIFS_CHANNEL_ID = 491719347929219072 # Hard-coded #live-streams channel - need to change this if the channel gets replaced
 RECORDS_CHANNEL_ID = 600075722232692746 # Hard-coded #wr-runs channel - need to change this if the channel gets replaced
 TEST_CHANNEL = 718209912341135374 # Wackee's test channel
-#RECORDS_CHANNEL_ID = TEST_CHANNEL
+RECORDS_CHANNEL_ID = TEST_CHANNEL
 NO_STREAMS_TEXT = "Nobody is currently streaming" + "<:NotLikeThis:257718094049443850>" # Default text used when there are no current streamers
 SOME_STREAMS_TEXT = "CURRENTLY LIVE:\n- - - - - - - - - - - - -" # Default text used when there are some current streamers
 TUT_ENDPOINT = "haloruns.info/tutorial?id=" # Once we get tutorials off the ground, this can be used to add commands for any number of tutorials present on the .info site
@@ -115,6 +115,7 @@ async def announce(record):
 	try:
 	# new method, trying to be cleaner about what data is being used; hopefully to be cleaned up more, maybe learn to create better objects for less json
 		prev_record = record["prev_record"]#better to split the previous record before messing with the json,^ again might wanna learn objects
+		icon = parseIcon(record)
 		game = record["game_name"]
 		diff = record["difficulty_name"]
 		level = record["level_name"]
@@ -132,10 +133,10 @@ async def announce(record):
 			oldestRank = ordinalize(findOldestRank(prev_record))
 		#split announcement for ease of printing, logging
 		if prev_record != None:
-			announcement = f":trophy: **New Record!**\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}\n\nPrevious Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nBeaten by {timeDiff}\nStanding for {prevTimeStanding},\n it was the {oldestRank} oldest record"
+			announcement = f":trophy: **New Record!**    {icon}\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}\n\nPrevious Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nBeaten by {timeDiff}\nStanding for {prevTimeStanding},\n it was the {oldestRank} oldest record"
 		else:
 		#if doesn't have previous:
-			announcement = f":trophy: **NEW RECORD!**\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}"
+			announcement = f":trophy: **NEW RECORD!**    {icon}\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}"
 		print(announcement)
 		embedLink = discord.Embed(description=announcement, color=0xff0000)
 		# old working method but ugly # embedlink = discord.Embed(description=":trophy: **new record!**\n%s %s - [%s %s](%s) | [%s](%s)\nset by: %s\n\nprevious record:\n[%s](%s) by %s\nbeaten by %s" % (record["game_name"], record["difficulty_name"], record["level_name"], iscoop(record), record["il_board_url"], record["time"], str(record["vid"]), parseplayers(record), record["prev_record"]["time"], str(record["prev_record"]["vid"]), parseplayers(record["prev_record"]), str(converttimes(record["prev_record"]["run_time"]-record["run_time"]))), color=0xff0000)
@@ -411,6 +412,19 @@ def parsePlayers(record):
 		if player != None:
 			players.append(buildPlayerMD(player))
 	return " | ".join(players)
+
+def parseIcon(record):
+	iconDict = {
+		"Halo CE":"<:CE:758288302738112543>",
+		"Halo 2":"<:H2:758288302423277620>",
+		"Halo 2 MCC":"<:H2:758288302423277620>",
+		"Halo 3":"<:H3:758288302863941652>",
+		"Halo 3: ODST":"<:ODST:758288303106555944>",
+		"Halo: Reach":"<:Reach:758288303191228477>",
+		"Halo 4":"<:H4:758288302985707531>",
+		"Halo 5":"<:H5:758288303064612905>"
+		}
+	return iconDict[record['game_name']]
 
 
 
