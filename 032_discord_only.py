@@ -22,7 +22,7 @@ ENDPOINT = "https://haloruns.com/api/" # API ENDPOINT for HaloRuns.com
 NOTIFS_CHANNEL_ID = 491719347929219072 # Hard-coded #live-streams channel - need to change this if the channel gets replaced
 RECORDS_CHANNEL_ID = 600075722232692746 # Hard-coded #wr-runs channel - need to change this if the channel gets replaced
 TEST_CHANNEL = 718209912341135374 # Wackee's test channel
-RECORDS_CHANNEL_ID = TEST_CHANNEL
+#RECORDS_CHANNEL_ID = TEST_CHANNEL
 NO_STREAMS_TEXT = "Nobody is currently streaming" + "<:NotLikeThis:257718094049443850>" # Default text used when there are no current streamers
 SOME_STREAMS_TEXT = "CURRENTLY LIVE:\n- - - - - - - - - - - - -" # Default text used when there are some current streamers
 TUT_ENDPOINT = "haloruns.info/tutorial?id=" # Once we get tutorials off the ground, this can be used to add commands for any number of tutorials present on the .info site
@@ -414,7 +414,7 @@ def parsePlayers(record):
 	return " | ".join(players)
 
 def parseIcon(record):
-	iconDict = {
+	return {
 		"Halo CE":"<:CE:758288302738112543>",
 		"Halo 2":"<:H2:758288302423277620>",
 		"Halo 2 MCC":"<:H2:758288302423277620>",
@@ -423,10 +423,7 @@ def parseIcon(record):
 		"Halo: Reach":"<:Reach:758288303191228477>",
 		"Halo 4":"<:H4:758288302985707531>",
 		"Halo 5":"<:H5:758288303064612905>"
-		}
-	return iconDict[record['game_name']]
-
-
+		}[record['game_name']]
 
 mb.loop.create_task(raceCountdown())
 mb.loop.create_task(lookForRecord())
