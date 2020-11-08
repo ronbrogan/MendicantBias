@@ -13,7 +13,8 @@ import sys
 import datetime
 import time
 import math
-import math
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 print(discord.__version__)
 mb = Bot(command_prefix='!') # Creates the main bot object - asynchronous
@@ -89,7 +90,8 @@ async def apiRecentWRs():
 	### Returns the most recent records list, and replaces the locally stored records list with a new one.
 	###NOTE: this means there is no aggregation over time - leaving that to HaloRuns.com
 
-	records = requests.get(str(ENDPOINT + "records/recent" + "/12")).json()
+	#records = requests.get(str(ENDPOINT + "records/recent" + "/12")).json()# - old
+	records = getJSON(str(ENDPOINT + "records/recent" + "/12"))
 	file = open("records.json", "w+")
 	json.dump(records, file)
 	file.truncate()
@@ -146,6 +148,7 @@ async def announce(record):
 		await recordsChannel.send(embed=embedLink)
 	except:
 		print("record announcement failed")
+
 async def maintainTwitchNotifs():
 	### Adds any streams in the current stream list that are not present in the #live-streams channel
 	### Then it calls the function to remove what doesn't belong any longer
@@ -158,23 +161,24 @@ async def maintainTwitchNotifs():
 		responses = []
 		postedStreamList = []
 #        try:
-		streamsData = requests.get(str(ENDPOINT + "streams"))
-		try:
-			streams = streamsData.json()
-		except:
-			print("LOGGING", "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE FAILURE\n")
-			log = open("log.txt", "a")
-			log_string = "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE FAILURE\n"
-			log.write(log_string, str(streamsData))
-			log.close()
-		log = open("log.txt", "a")
-		print("LOGGING", "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE\n")
-		log_string = "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE\n"
-		log.write(log_string)
-#        print(streams)
-		for stream in streams:
-			log.write(str(stream["stream"] + "\n"))
-		log.close()
+		#streamsData = requests.get(str(ENDPOINT + "streams"))# - old
+		streams = getJSON(str(ENDPOINT + "streams"))
+#		try: # - old
+#			streams = streamsData.json()
+#		except:
+#			print("LOGGING", "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE FAILURE\n")
+#			log = open("log.txt", "a")
+#			log_string = "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE FAILURE\n"
+#			log.write(log_string, str(streamsData))
+#			log.close()
+#		log = open("log.txt", "a")
+#		print("LOGGING", "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE\n")
+#		log_string = "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE\n"
+#		log.write(log_string)
+##        print(streams)
+		#for stream in streamsData: # note earlier json conversion
+		#	log.write(str(stream["stream"] + "\n"))
+		#log.close()
 #        except:
 #            print("stream pull failed")
 		postedStreams = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first = True).flatten()
@@ -182,7 +186,7 @@ async def maintainTwitchNotifs():
 		for stream in postedStreams:
 			postedStreamList.append(stream.content)
 #        try:
-		if streams != []:
+		if streams != []:# note earlier json conversion
 #            config = loadConfig()
 			for stream in streams:
 				if stream["stream"] not in postedStreamList:
@@ -198,7 +202,6 @@ async def maintainTwitchNotifs():
 		for stream in streams:
 			parsedStreams.append(stream["stream"])
 		await purgeNotStreams(parsedStreams)
-
 async def purgeNotStreams(streams):
 	### Removes any streams present in the #live-streams channel that are not in the current stream list
 
@@ -424,6 +427,33 @@ def parseIcon(record):
 		"Halo 4":"<:H4:758288302985707531>",
 		"Halo 5":"<:H5:758288303064612905>"
 		}[record['game_name']]
+
+def getJSON(url): # New method of guaranteeing a valid JSON response - sometimes the bot crashes when bad data is returned, this aims to fix that
+	print(f"Requesting JSON from: {url}")
+	attempts = 0
+	errorMessage = ""
+	while attempts < 10:
+		response = requests.get(url, verify=False)
+		try:
+			responseDict = response.json()
+			print(f"Successfully returned valid JSON object")
+			return responseDict
+		except:
+			print("NOT VALID JSON")
+
+			if str(errorMessage) != str(response):
+				print(f"NEW ERROR: {response}")
+				attempts = 0
+			else:
+				print(f"ERROR: {response}")
+
+			errorMessage = response
+			#print(f"-------------\nRESPONSE\n-------------\n{response}\n-------------\nEND RESPONSE\n-------------\n")
+			attempts += 1
+			print(f"Retrying api request... {attempts} attempts ({5 * attempts} seconds before next request)\n")
+			time.sleep(5 * attempts)
+	print("Timed out server request")
+	exit()
 
 mb.loop.create_task(raceCountdown())
 mb.loop.create_task(lookForRecord())
