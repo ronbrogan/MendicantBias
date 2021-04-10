@@ -35,6 +35,11 @@ NOHR = open("nohr.txt").readline().strip().split(",")
 RELAY = False
 RACE = False
 
+modIds = json.load(open("modIds.json", "r"))["modIds"]
+print(modIds)
+
+temps = {}
+
 @mb.event
 async def on_message(message):
         ### This needs to STOP - gotta find a way to make this cleaner
@@ -99,12 +104,37 @@ async def on_message(message):
             rules_desc = "[Rules Page](https://haloruns.com/rules)\n[Rules Forum Posts](https://haloruns.com/forums?t=3)\n[H2 Timing Video Guide](https://youtu.be/1DT7XwIDrwE)\n[Coop Forum Posts](https://haloruns.com/forums?t=595)\nPlease read the posts carefully, and ask question if you need some clarification" 
             rules_embed = discord.Embed(description=rules_desc)
             await message.channel.send(embed=rules_embed)
+        if ".ban" in message.content.lower():
+                print(f"ban message detected from {message.author.id}")
+                print(f"mods: {modIds}")
+                if message.author.id in modIds:
+                        print("modCheck")
+                        link = message.content.lower().split(" ")[1]
+                        retStr = f"banning {link} from the stream list for the default timeout period"
+                        print(f"banning {link} from the stream list for the default timeout period")
+                        await message.channel.send(retStr)
+                        temps[link] = time.time()
 
-async def on_reaction_add(reaction, user):
-        print("REACTION")
-        print(reaction.emoji, reaction.__dir__())
+# async def on_reaction_add(reaction, user):
+#         print("REACTION")
+#         print(reaction.emoji, reaction.__dir__())
+#         return 
 
-        return 
+# async def on_message_delete(message):
+
+#         if message.channel.id == NOTIFS_CHANNEL_ID:
+#                 temps[message.content.lower] == time.time()
+#                 return
+
+async def manageTemps():
+        while True:
+                await asyncio.sleep(10)
+                defTimeout = 60*60*8
+                timeout = defTimeout
+                for key in temps.keys():
+                        if time.time() > temps[key] + timeout:
+                                print(f"{temps.pop(temps[key])} removed from temp list")
+
 
 async def apiRecentWRs():
         ### Returns the most recent records list, and replaces the locally stored records list with a new one.
@@ -211,13 +241,15 @@ async def maintainTwitchNotifs():
 #            config = loadConfig()
                         for stream in streams:
                                 if stream["stream"].lower() not in postedStreamList:
-                                    print(f"{stream['stream'].lower()} not in: {postedStreamList}")
+                                        if stream["stream"].lower() not in temps.keys():
+                                                print(f"{stream['stream'].lower()} not in: {postedStreamList}")
 #                        if config[stream["#" + "stream".lower()]]["muted"] == False:
-                                    responses.append(stream["stream"])
+                                                responses.append(stream["stream"])
                         streamsChannel = mb.get_channel(NOTIFS_CHANNEL_ID)
                         if responses != []:
                                 for response in responses:
                                                 await streamsChannel.send(response)
+                                                
 #        except:
 #            print("Failed posting new streams")
                 parsedStreams = []
@@ -559,7 +591,7 @@ def getJSON(url): # New method of guaranteeing a valid JSON response - sometimes
                         time.sleep(5 * attempts)
         print("Timed out server request")
         exit()
-
+mb.loop.create_task(manageTemps())
 mb.loop.create_task(raceCountdown())
 mb.loop.create_task(lookForRecord())
 mb.loop.create_task(maintainTwitchNotifs())
