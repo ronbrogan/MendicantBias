@@ -117,17 +117,6 @@ async def on_message(message):
                         await message.channel.send(retStr)
                         temps[link] = time.time()
 
-# async def on_reaction_add(reaction, user):
-#         print("REACTION")
-#         print(reaction.emoji, reaction.__dir__())
-#         return 
-
-# async def on_message_delete(message):
-
-#         if message.channel.id == NOTIFS_CHANNEL_ID:
-#                 temps[message.content.lower] == time.time()
-#                 return
-
 async def manageTemps():
         while True:
                 await asyncio.sleep(10)
@@ -256,129 +245,6 @@ async def maintainTwitchNotifs():
                 saveStreamsToFile(postedStreamList, "streamlist.txt")
                # await purgeOldStreams(postedStreamList) folding into main maintenance
 
-async def purgeOldStreams(streams):
-        ### Removes any streams present in the #live-streams channel that are not in the current stream list
-
-        if streams != []:
-                for stream in streams:
-                        stream = stream.rstrip()
-                for messageObject in flat:
-                        if messageObject == oldestMessage:
-                                if messageObject.content != SOME_STREAMS_TEXT:   
-                                        if RELAY==False:
-                                                print("Streams found, editing top message")
-                                                await messageObject.edit(content = SOME_STREAMS_TEXT)
-                                else:
-                                        print("Found streams, continuing...")
-                        if messageObject.content.lower() not in streams:
-                                if messageObject == oldestMessage:
-                                        pass
-                                else:
-                                        print(f"{messageObject.content.lower()} not in: {streams}")
-                                        await messageObject.delete()
-                                        
-        else:
-                print("No Streams found, editing top message")
-                messagesLen = len(flat)
-                for messageObject in flat:
-                        if messageObject == oldestMessage:
-                                if RELAY==False:
-                                        await messageObject.edit(content=NO_STREAMS_TEXT)
-                        else:
-                                await messageObject.delete()
-
-async def maintainTwitchNotifs__Old():
-        while True:
-                await asyncio.sleep(10) # Update interval, seconds
-                streams = []
-                print("looking for streams to post")
-                responses = []
-                postedStreamList = []
-#        try:
-                #streamsData = requests.get(str(ENDPOINT + "streams"))# - old
-                streams = getJSON(str(ENDPOINT + "streams"))
-                #print(streams)
-#               try: # - old
-#                       streams = streamsData.json()
-#               except:
-#                       print("LOGGING", "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE FAILURE\n")
-#                       log = open("log.txt", "a")
-#                       log_string = "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE FAILURE\n"
-#                       log.write(log_string, str(streamsData))
-#                       log.close()
-#               log = open("log.txt", "a")
-#               print("LOGGING", "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE\n")
-#               log_string = "[" + str(time.ctime())[:-5] + "]" + " | STREAM UPDATE\n"
-#               log.write(log_string)
-##        print(streams)
-                #for stream in streamsData: # note earlier json conversion
-                #       log.write(str(stream["stream"] + "\n"))
-                #log.close()
-#        except:
-#            print("stream pull failed")
-                postedStreams = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first = True).flatten()
-                postedStreams = postedStreams[1:]
-                for stream in postedStreams:
-                        postedStreamList.append(stream.content.lower())
-#        try:
-                if streams != []:# note earlier json conversion
-#            config = loadConfig()
-                        for stream in streams:
-                                if stream["stream"].lower() not in postedStreamList:
-                                        if stream["stream"].lower() not in temps.keys():
-                                                print(f"{stream['stream'].lower()} not in: {postedStreamList}")
-#                        if config[stream["#" + "stream".lower()]]["muted"] == False:
-                                                responses.append(stream["stream"])
-                        streamsChannel = mb.get_channel(NOTIFS_CHANNEL_ID)
-                        if responses != []:
-                                for response in responses:
-                                                await streamsChannel.send(response)
-                                                
-#        except:
-#            print("Failed posting new streams")
-                parsedStreams = []
-                for stream in streams:
-                        parsedStreams.append(stream["stream"].lower())
-                await purgeNotStreams(parsedStreams)
-async def purgeNotStreams__Old(streams):
-
-        ##NEW
-                with open("streamlist.txt", "r+") as savedStreamsFile:
-                        savedStreams = savedStreamsFile.readlines()
-                        savedStreams = [x.strip() for x in savedStreams]
-        ### Removes any streams present in the #live-streams channel that are not in the current stream list
-
-        flat = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten() # returns a flattened ordered list of all present messages in the channel
-#        await raceCountdown() # idek lol, think this is here because the channel could flicker if not checked before removal of streams
-        oldestMessage = flat[0] # this identifies the top message, because it's used for ^ periodic messages
-        if streams != []:
-                for stream in streams:
-                        stream = stream.rstrip()
-                for messageObject in flat:
-                        if messageObject == oldestMessage:
-                                if messageObject.content != SOME_STREAMS_TEXT:   
-                                        if RELAY==False:
-                                                print("Streams found, editing top message")
-                                                await messageObject.edit(content = SOME_STREAMS_TEXT)
-                                else:
-                                        print("Found streams, continuing...")
-                        if messageObject.content.lower() not in streams:
-                                if messageObject == oldestMessage:
-                                        pass
-                                else:
-                                        print(f"{messageObject.content.lower()} not in: {streams}")
-                                        await messageObject.delete()
-                                        
-        else:
-                print("No Streams found, editing top message")
-                messagesLen = len(flat)
-                for messageObject in flat:
-                        if messageObject == oldestMessage:
-                                if RELAY==False:
-                                        await messageObject.edit(content=NO_STREAMS_TEXT)
-                        else:
-                                await messageObject.delete()
-
 def getTimeFormat(s):
         count = s.count(':')
         if count == 0:
@@ -435,45 +301,6 @@ async def getPoints(pb, wr):
         finally:
                 return(help_string + pointsStr)
 
-async def rulesCmd():
-    return
-
-#def timeToSeconds(timeString):
-#    seconds = 0
-#    for part in timeString.split(":"):
-#        seconds = seconds*60 + int(part)
-#    return int(seconds)
-
-#async def getPoints(time1, time2):
-#       ### Returns the description field for the ".points" command
-#       ### FIX: make this work either way, and with hours
-
-##      print("checking points", pb, wr)
-##      pb_split = pb.split(":")
-##        if len(pb_split) == 3:
-##        pb_hours = int()
-##      pb_mins = int(pb_split[0])
-##      pb_secs = int(pb_split[1])
-##      pb_comb = pb_secs + 60 * pb_mins
-##      wr_split = wr.split(":")
-##      wr_mins = int(wr_split[0])
-##      wr_secs = int(wr_split[1])
-##      wr_comb = wr_secs + 60 * wr_mins
-#    isLong = False
-#    seconds1 = timeToSeconds(time1)
-#    seconds2 = timeToSeconds(time2)
-#    secondsSorted = [seconds1, seconds2]
-#    secondsSorted.sort(key=int)
-#    if seconds1 > 3000:
-#        isLong = True
-#    if isLong == True:
-#        points = math.trunc((0.008 * math.exp(4.8284*(secondsSorted[0]/secondsSorted[1])) * 1000))
-#    else:
-#        points = math.trunc((0.008 * math.exp(4.8284*(secondsSorted[0]/secondsSorted[1])) * 100))
-#    print(points)
-#    help_string = "Use like this: .points [hh:]mm:ss [hh:]mm:ss.\n"
-#    return(str(help_string + "Your PB of " + str(datetime.timedelta(seconds=secondsSorted[0]))  + " against "  + str(datetime.timedelta(seconds=secondsSorted[1])) + " is worth " + str(points) + " points"))
-
 async def lookForRecord():
         ### Upon a new record being added to the HR database, this catches it by checking the API against the locally stored records
         ### It then calls the announce() function to push it to the Discord channel
@@ -494,23 +321,6 @@ async def lookForRecord():
                 except:
                         pass
 
-#wackee's method
-#def convertTimes(seconds): 
-#       seconds = seconds % (24 * 3600) 
-#       hour = seconds // 3600
-#       seconds %= 3600
-#       minutes = seconds // 60
-#       seconds %= 60
-#       if hour == 0:
-#               if minutes == 00:
-#                       return ":%02d" % (seconds)
-#               else:
-#                       return "%02d:%02d" % (minutes, seconds)
-#       else:
-#               return "%d:%02d:%02d" % (hour, minutes, seconds)
-
-# Backflip's method
-#Wackee - NOTE: unlikely, but wouldn't this break if there's over an hour timesave?
 def convertTimes(seconds):
                 return '%d:%02d' % (seconds // 60 if seconds > 60 else 0, seconds % 60)
 
@@ -578,58 +388,7 @@ async def raceCountdown(ret=False):
 #                        await oldestMessage.edit(content = str(':'.join(str(delta).split(':')[:2])) + " until the #off-topic Marathon!")
                         await oldestMessage.edit(content = str("HaloRuns #off-topic Marathon is LIVE\nWatch at https://www.twitch.tv/HaloSpeedrunNetwork"))
 
-# unnecessary? or old or bad idk
-
-#def fixUrl(word):
-#       newWord = "<" + word + ">"
-#       return newWord
-
-#def fixEscape(string):
-#       decoded = bytes(string, "utf-8").decode("unicode_escape")
-#       return decoded
-
-#def un2(game):
-#       if game == "Halo 2 MCC":
-#               return "Halo: Master Chief Collection"
-#       else:
-#               return game
-
-#async def getProfile(user):
-#       return requests.get(str(ENDPOINT + "users/" + user)).json()
-        
-#def infoStream(stream):
-#       splitStream = stream.split("\n")
-#       print(splitStream)
-#       streamEr = (" ").join(splitStream[0].split("is live!")[0])
-#       streamGame = (" ").join(splitStream[1].split(" ")[1:])
-#       streamTitle = splitStream[2]
-#       print(streamEr, streamGame, streamTitle)
-#       return (streamEr, streamGame, streamTitle)
-
-#def streams(streams):
-#       streamList = []
-#       for stream in streams:
-#               streamList.append(stream["stream"])
-#       return streams
-
-#def loadConfig():
-#       file = json.load(open("config.json", "r+"))
-#       return file
-
-#def parseStream(stream):
-#       val = URLValidator()
-#       newTitleList = []
-#       title = fixEscape(stream["title"])
-#       print(title)
-#       for word in stream["title"].split(" "):
-#               try:
-#                       val(word)
-#                       newTitleList.append(fixUrl(word))
-#               except:
-#                       newTitleList.append(word)
-#       newTitle = " ".join(newTitleList)
-#       streamParse = "%s is live!\nPlaying %s\n%s\n%s" % (stream["name"], un2(stream["game"]), newTitle, stream["stream"])
-#       return streamParse
+                return "Halo: Master Chief Collection"
 
 def buildPlayerMD(player):
         print(str("[%s](https://haloruns.com/profiles/%s)" % (player, player)))
@@ -690,5 +449,5 @@ def getJSON(url): # New method of guaranteeing a valid JSON response - sometimes
 mb.loop.create_task(manageTemps())
 mb.loop.create_task(raceCountdown())
 #mb.loop.create_task(lookForRecord())
-#mb.loop.create_task(maintainTwitchNotifs())
+mb.loop.create_task(maintainTwitchNotifs())
 mb.run(TOKEN)
