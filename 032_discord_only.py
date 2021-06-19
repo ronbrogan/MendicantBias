@@ -24,8 +24,8 @@ ENDPOINT = "https://haloruns.com/api/" # API ENDPOINT for HaloRuns.com
 STREAMS_ENDPOINT = "https://halorunsdev.z20.web.core.windows.net/content/feeds/streamList.json"
 NOTIFS_CHANNEL_ID = 491719347929219072 # Hard-coded #live-streams channel - need to change this if the channel gets replaced
 RECORDS_CHANNEL_ID = 600075722232692746 # Hard-coded #wr-runs channel - need to change this if the channel gets replaced
-TEST_CHANNEL = 718209912341135374 # Wackee's test channel
-#RECORDS_CHANNEL_ID = TEST_CHANNEL
+TEST_CHANNEL = 818617029011177492 # Wackee's test channel
+#NOTIFS_CHANNEL_ID = TEST_CHANNEL##
 NO_STREAMS_TEXT = "Nobody is currently streaming" + "<:NotLikeThis:257718094049443850>" # Default text used when there are no current streamers
 DEFAULT_SOME_STREAMS = "To appear on the HaloRuns stream tracker, link your Twitch account at https://haloruns.com/link/editProfile\nFor a list of terms that will automatically hide your stream from being shown here (if you are not speedrunning or would prefer to have your stream hidden) you can use the .nohr command anywhere in the server, or DM me directly!\n- - - - - - - - - - - - -\nCURRENTLY LIVE:\n- - - - - - - - - - - - -" # Default text used when there are some current streamers
 SOME_STREAMS_TEXT=DEFAULT_SOME_STREAMS
@@ -198,7 +198,7 @@ async def getPostedStreams():
                 postedStreamList.append(stream.content.lower())
         return postedStreamList
 
-async def saveStreamsToFile(postedStreamList, filename):
+def saveStreamsToFile(postedStreamList, filename):
         with open(filename, "w+") as file:
                 for stream in postedStreamList:
                         file.write(stream + "\n")
@@ -211,25 +211,25 @@ async def maintainTwitchNotifs():
         ### Adds streams that are not present in the channel, as long as they aren't temp banned by discord mods
         ### Saves the stream list to file, then calls the purge function NOTE: maybe purging earlier
 
-        while true:
+        while True:
                 await asyncio.sleep(10) # Timer to loop, better way but haven't gotten around to changing it
                 print("Looking for streams to post") # CONSOLE OUT
                 apiData = getJSON(STREAMS_ENDPOINT) # Pull from API
-                postedStreamList = getPostedStreams() # Get newest channel feed
+                postedStreamList = await getPostedStreams() # Get newest channel feed
                 responses = []
-
+                messageList = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
+                messageList = messageList[1:]
+                
                 if len(apiData["Entries"]) == 0:
-                      messageList = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
-                      messageList = messageList[1:]
                       for messageObject in messageList:
-                              messageObject.delete()
+                              await messageObject.delete()
                 else:
                         apiList = []
                         for entry in apiData["Entries"]:
                                 apiList.append(entry["StreamUrl"].lower().rstrip())
                         for messageObject in messageList:
                                 if messageObject.content.lower() not in apiList:
-                                        messageObject.delete()
+                                        await messageObject.delete()
                         for stream in apiData["Entries"]:
                                 if stream["StreamUrl"].lower() not in postedStreamList:
                                         if stream["StreamUrl"].lower() not in temps.keys():
@@ -241,7 +241,7 @@ async def maintainTwitchNotifs():
                                 for response in responses:
                                                 await streamsChannel.send(response)
 
-                postedStreamList = getPostedStreams() # Get updated channel feed
+                postedStreamList = await getPostedStreams() # Get updated channel feed
                 saveStreamsToFile(postedStreamList, "streamlist.txt")
                # await purgeOldStreams(postedStreamList) folding into main maintenance
 
