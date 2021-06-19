@@ -1,0 +1,11 @@
+{
+    "ENDPOINT": "https:\/\/haloruns.com\/api\/",
+    "NOTIFS_CHANNEL_ID": 768914577311662091,
+    "RECORDS_CHANNEL_ID": 768914577311662091,
+    "TEST_CHANNEL": 768914577311662091,
+    "DEFAULT_SOME_STREAMS": "To appear on the HaloRuns stream tracker, link your Twitch account at https://haloruns.com/link/editProfile\nFor a list of terms that will automatically hide your stream from being shown here (if you are not speedrunning or would prefer to have your stream hidden) you can use the .nohr command anywhere in the server, or DM me directly!\n- - - - - - - - - - - - -\nCURRENTLY LIVE:\n- - - - - - - - - - - - -",
+    "NO_STREAMS_TEXT": "Nobody is currently streaming<:NotLikeThis:257718094049443850>",
+    "TUT_ENDPOINT": "haloruns.info\/tutorial?id=",
+    "EVENT_OVERRIDE": "",
+    "EVENT_DT":"2021-3-13 08:00:00.000000"
+  }  
