@@ -199,9 +199,9 @@ async def getPostedStreams():
         return postedStreamList
 
 def saveStreamsToFile(postedStreamList, filename):
-        with open(filename, "w+") as file:
+        with open(filename, "a+") as file:
                 for stream in postedStreamList:
-                        file.write(stream + "\n")
+                        file.append(stream + "\n")
                 file.truncate()
 
 
@@ -219,7 +219,7 @@ async def maintainTwitchNotifs():
                 responses = []
                 messageList = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
                 messageList = messageList[1:]
-                
+
                 if len(apiData["Entries"]) == 0:
                       for messageObject in messageList:
                               await messageObject.delete()
