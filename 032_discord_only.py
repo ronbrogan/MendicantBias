@@ -21,6 +21,7 @@ print(discord.__version__)
 mb = Bot(command_prefix='!') # Creates the main bot object - asynchronous
 TOKEN = open("TOKEN.txt", "r").readline() # reads the token used by the bot from the local directory
 ENDPOINT = "https://haloruns.com/api/" # API ENDPOINT for HaloRuns.com
+OLD_STREAMS_ENDPOINT = "https://haloruns.com/api/streams"
 STREAMS_ENDPOINT = "https://halorunsdev.z20.web.core.windows.net/content/feeds/streamList.json"
 NOTIFS_CHANNEL_ID = 491719347929219072 # Hard-coded #live-streams channel - need to change this if the channel gets replaced
 RECORDS_CHANNEL_ID = 600075722232692746 # Hard-coded #wr-runs channel - need to change this if the channel gets replaced
@@ -204,6 +205,23 @@ def saveStreamsToFile(postedStreamList, filename):
                         file.append(stream + "\n")
                 file.truncate()
 
+def convertOldToNewStreamData(oldApiData):
+        apiData = {
+                "UpdatedAt": "",
+                "Entries": []
+                }
+        for element in oldApiData:
+                twitchUserNameFromUrl = element["stream"].split(".tv/")[1]
+                apiData["Entries"].append( {
+                        "TwitchUsername": twitchUserNameFromUrl,
+                        "GameName": element["game_name"],
+                        "Title": element["title"],
+                        "Viewers": element["viewers"],
+                        "Username": element["username"],
+                        "StreamUrl": element["stream"]
+                        } )
+        apiData["UpdatedAt"] = strftime("%Y-%m-%dT%H:%M:%S.%f0+00:00") # "2021-08-11T17:40:01.6580078+00:00"
+        return apiData
 
 async def maintainTwitchNotifs():
         ### Loops on sleep
@@ -214,7 +232,8 @@ async def maintainTwitchNotifs():
         while True:
                 await asyncio.sleep(10) # Timer to loop, better way but haven't gotten around to changing it
                 print("Looking for streams to post") # CONSOLE OUT
-                apiData = getJSON(STREAMS_ENDPOINT) # Pull from API
+                oldApiData = getJSON(OLD_STREAMS_ENDPOINT) # Pull from OLD API
+                apiData = convertOldToNewStreamData(oldApiData)
                 postedStreamList = await getPostedStreams() # Get newest channel feed
                 responses = []
                 messageList = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
