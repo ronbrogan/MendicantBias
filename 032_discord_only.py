@@ -220,7 +220,7 @@ def convertOldToNewStreamData(oldApiData):
                         "Username": element["username"],
                         "StreamUrl": element["stream"]
                         } )
-        apiData["UpdatedAt"] = strftime("%Y-%m-%dT%H:%M:%S.%f0+00:00") # "2021-08-11T17:40:01.6580078+00:00"
+        apiData["UpdatedAt"] = strftime("%Y-%m-%dT%H:%M:%S.%f0+00:00") # "2021-08-11T17:40:01.6580078+00:00" - fix later
         return apiData
 
 async def maintainTwitchNotifs():
@@ -234,7 +234,6 @@ async def maintainTwitchNotifs():
                 print("Looking for streams to post") # CONSOLE OUT
                 oldApiData = getJSON(OLD_STREAMS_ENDPOINT) # Pull from OLD API
                 apiData = convertOldToNewStreamData(oldApiData)
-                postedStreamList = await getPostedStreams() # Get newest channel feed
                 responses = []
                 messageList = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
                 messageList = messageList[1:]
@@ -247,9 +246,10 @@ async def maintainTwitchNotifs():
                         for entry in apiData["Entries"]:
                                 apiList.append(entry["StreamUrl"].lower().rstrip())
                         for messageObject in messageList:
-                                if messageObject.content.lower() not in apiList:
+                                if messageObject.content.lower().rstrip() not in apiList:
                                         await messageObject.delete()
-                        for stream in apiData["Entries"]:
+                        postedStreamList = await getPostedStreams() # Get newest channel feed
+                        for stream in apiList:
                                 if stream["StreamUrl"].lower() not in postedStreamList:
                                         if stream["StreamUrl"].lower() not in temps.keys():
                                                 print(f"{stream['StreamUrl'].lower()} not in: {postedStreamList}")
@@ -261,7 +261,7 @@ async def maintainTwitchNotifs():
                                                 await streamsChannel.send(response)
 
                 postedStreamList = await getPostedStreams() # Get updated channel feed
-                saveStreamsToFile(postedStreamList, "streamlist.txt")
+                # saveStreamsToFile(postedStreamList, "streamlist.txt")
                # await purgeOldStreams(postedStreamList) folding into main maintenance
 
 def getTimeFormat(s):
@@ -467,6 +467,6 @@ def getJSON(url): # New method of guaranteeing a valid JSON response - sometimes
         exit()
 mb.loop.create_task(manageTemps())
 mb.loop.create_task(raceCountdown())
-#mb.loop.create_task(lookForRecord())
+mb.loop.create_task(lookForRecord())
 mb.loop.create_task(maintainTwitchNotifs())
 mb.run(TOKEN)
