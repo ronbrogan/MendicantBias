@@ -17,7 +17,7 @@ import math
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-print(discord.__version__)
+print(f"{discord.__version__}\nVersion 2021.8.31")
 mb = Bot(command_prefix='!') # Creates the main bot object - asynchronous
 TOKEN = open("TOKEN.txt", "r").readline() # reads the token used by the bot from the local directory
 ENDPOINT = "https://haloruns.com/api/" # API ENDPOINT for HaloRuns.com
