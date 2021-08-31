@@ -250,10 +250,10 @@ async def maintainTwitchNotifs():
                                         await messageObject.delete()
                         postedStreamList = await getPostedStreams() # Get newest channel feed
                         for stream in apiList:
-                                if stream["StreamUrl"].lower() not in postedStreamList:
-                                        if stream["StreamUrl"].lower() not in temps.keys():
-                                                print(f"{stream['StreamUrl'].lower()} not in: {postedStreamList}")
-                                                responses.append(stream["StreamUrl"].lower())
+                                if stream not in postedStreamList:
+                                        if stream not in temps.keys():
+                                                print(f"{stream} not in: {postedStreamList}")
+                                                responses.append(stream)
                         streamsChannel = mb.get_channel(NOTIFS_CHANNEL_ID)
 
                         if responses != []:
