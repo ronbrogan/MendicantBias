@@ -20,15 +20,14 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 print(f"{discord.__version__}\nVersion 2021.8.31")
 mb = Bot(command_prefix='!') # Creates the main bot object - asynchronous
 TOKEN = open("TOKEN.txt", "r").readline() # reads the token used by the bot from the local directory
-ENDPOINT = "https://haloruns.com/api/" # API ENDPOINT for HaloRuns.com
-OLD_STREAMS_ENDPOINT = "https://haloruns.com/api/streams"
-STREAMS_ENDPOINT = "https://halorunsdev.z20.web.core.windows.net/content/feeds/streamList.json"
+ENDPOINT = "https://api.haloruns.com/" # API ENDPOINT for HaloRuns.com
+STREAMS_ENDPOINT = "https://haloruns.com/content/feeds/streamList.json"
 NOTIFS_CHANNEL_ID = 491719347929219072 # Hard-coded #live-streams channel - need to change this if the channel gets replaced
 RECORDS_CHANNEL_ID = 600075722232692746 # Hard-coded #wr-runs channel - need to change this if the channel gets replaced
 TEST_CHANNEL = 818617029011177492 # Wackee's test channel
 #NOTIFS_CHANNEL_ID = TEST_CHANNEL##
 NO_STREAMS_TEXT = "Nobody is currently streaming" + "<:NotLikeThis:257718094049443850>" # Default text used when there are no current streamers
-DEFAULT_SOME_STREAMS = "To appear on the HaloRuns stream tracker, link your Twitch account at https://haloruns.com/link/editProfile\nFor a list of terms that will automatically hide your stream from being shown here (if you are not speedrunning or would prefer to have your stream hidden) you can use the .nohr command anywhere in the server, or DM me directly!\n- - - - - - - - - - - - -\nCURRENTLY LIVE:\n- - - - - - - - - - - - -" # Default text used when there are some current streamers
+DEFAULT_SOME_STREAMS = "To appear on the HaloRuns stream tracker, link your Twitch account at https://haloruns.com/\nFor a list of terms that will automatically hide your stream from being shown here (if you are not speedrunning or would prefer to have your stream hidden) you can use the .nohr command anywhere in the server, or DM me directly!\n- - - - - - - - - - - - -\nCURRENTLY LIVE:\n- - - - - - - - - - - - -" # Default text used when there are some current streamers
 SOME_STREAMS_TEXT=DEFAULT_SOME_STREAMS
 TUT_ENDPOINT = "haloruns.info/tutorial?id=" # Once we get tutorials off the ground, this can be used to add commands for any number of tutorials present on the .info site
 NOHR = open("nohr.txt").readline().strip().split(",")
@@ -133,6 +132,7 @@ async def apiRecentWRs():
         ###NOTE: this means there is no aggregation over time - leaving that to HaloRuns.com
 
         #records = requests.get(str(ENDPOINT + "records/recent" + "/12")).json()# - old
+        # Note to wackee: new endpoint is haloruns.com/content/feeds/newRecords.json
         records = getJSON(str(ENDPOINT + "records/recent" + "/12"))
         file = open("records.json", "w+")
         json.dump(records, file)
@@ -205,24 +205,6 @@ def saveStreamsToFile(postedStreamList, filename):
                         file.append(stream + "\n")
                 file.truncate()
 
-def convertOldToNewStreamData(oldApiData):
-        apiData = {
-                "UpdatedAt": "",
-                "Entries": []
-                }
-        for element in oldApiData:
-                twitchUserNameFromUrl = element["stream"].split(".tv/")[1]
-                apiData["Entries"].append( {
-                        "TwitchUsername": twitchUserNameFromUrl,
-                        "GameName": element["game_name"],
-                        "Title": element["title"],
-                        "Viewers": element["viewers"],
-                        "Username": element["username"],
-                        "StreamUrl": element["stream"]
-                        } )
-        apiData["UpdatedAt"] = strftime("%Y-%m-%dT%H:%M:%S.%f0+00:00") # "2021-08-11T17:40:01.6580078+00:00" - fix later
-        return apiData
-
 async def maintainTwitchNotifs():
         ### Loops on sleep
         ### Pulls streams from API
@@ -230,10 +212,9 @@ async def maintainTwitchNotifs():
         ### Saves the stream list to file, then calls the purge function NOTE: maybe purging earlier
 
         while True:
-                await asyncio.sleep(10) # Timer to loop, better way but haven't gotten around to changing it
+                await asyncio.sleep(60) # Timer to loop, better way but haven't gotten around to changing it
                 print("Looking for streams to post") # CONSOLE OUT
-                oldApiData = getJSON(OLD_STREAMS_ENDPOINT) # Pull from OLD API
-                apiData = convertOldToNewStreamData(oldApiData)
+                apiData = getJSON(STREAMS_ENDPOINT)
                 responses = []
                 messageList = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
                 messageList = messageList[1:]
@@ -246,19 +227,27 @@ async def maintainTwitchNotifs():
                         for entry in apiData["Entries"]:
                                 apiList.append(entry["StreamUrl"].lower().rstrip())
                         for messageObject in messageList:
-                                if messageObject.content.lower().rstrip() not in apiList:
+                                if messageObject.content.lower() not in apiList:
                                         await messageObject.delete()
                         postedStreamList = await getPostedStreams() # Get newest channel feed
-                        for stream in apiList:
-                                if stream not in postedStreamList:
-                                        if stream not in temps.keys():
-                                                print(f"{stream} not in: {postedStreamList}")
-                                                responses.append(stream)
+                        for stream in apiData["Entries"]:
+                                if stream["StreamUrl"].lower() not in postedStreamList:
+                                        if stream["StreamUrl"].lower() not in temps.keys():
+                                                print(f"{stream['StreamUrl'].lower()} not in: {postedStreamList}")
+                                                ### TODO: get twitch user color and set in embed
+                                                embed = discord.Embed(title=f"Streaming {stream['GameName']}", description=f"\"{stream['Title']}\"", color=0x080808)
+                                                embed.set_author(name=f"{stream['Username']}", url=f"https://haloruns.com/profiles/{stream['Username'].lower()}")
+                                                ### TODO: Get Game Name from site when we get functionality to detect game.
+                                                embed.add_field(name="\u200b", value=f"[Watch Here]({stream['StreamUrl'].lower()})", inline=True)
+                                                embed.set_footer(text=f"{stream['Viewers']} Viewers | {stream['StreamUrl'].lower()}")
+                                                ### Not sure if we want viewer count, but its here if we do.
+                                                embed.set_thumbnail(url=f"{stream['ProfileImageUrl']}")
+                                                responses.append(embed)
                         streamsChannel = mb.get_channel(NOTIFS_CHANNEL_ID)
 
                         if responses != []:
                                 for response in responses:
-                                                await streamsChannel.send(response)
+                                                await streamsChannel.send(embed=response)
 
                 postedStreamList = await getPostedStreams() # Get updated channel feed
                 # saveStreamsToFile(postedStreamList, "streamlist.txt")
