@@ -21,7 +21,7 @@ print(f"{discord.__version__}\nVersion 2021.8.31")
 mb = Bot(command_prefix='!') # Creates the main bot object - asynchronous
 TOKEN = open("TOKEN.txt", "r").readline() # reads the token used by the bot from the local directory
 ENDPOINT = "https://api.haloruns.com/" # API ENDPOINT for HaloRuns.com
-STREAMS_ENDPOINT = "https://haloruns.azureedge.net/content/feeds/streamList.json"
+STREAMS_ENDPOINT = "https://haloruns.com/content/feeds/streamList.json"
 NOTIFS_CHANNEL_ID = 491719347929219072 # Hard-coded #live-streams channel - need to change this if the channel gets replaced
 RECORDS_CHANNEL_ID = 600075722232692746 # Hard-coded #wr-runs channel - need to change this if the channel gets replaced
 TEST_CHANNEL = 818617029011177492 # Wackee's test channel
