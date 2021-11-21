@@ -20,15 +20,16 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 print(f"{discord.__version__}\nVersion 2021.8.31")
 mb = Bot(command_prefix='!') # Creates the main bot object - asynchronous
 TOKEN = open("TOKEN.txt", "r").readline() # reads the token used by the bot from the local directory
-ENDPOINT = "https://haloruns.com/api/" # API ENDPOINT for HaloRuns.com
-OLD_STREAMS_ENDPOINT = "https://haloruns.com/api/streams"
-STREAMS_ENDPOINT = "https://halorunsdev.z20.web.core.windows.net/content/feeds/streamList.json"
+ENDPOINT = "https://api.haloruns.com/" # API ENDPOINT for HaloRuns.com
+STREAMS_ENDPOINT = "https://haloruns.com/content/feeds/streamList.json"
+RECORDS_ENDPOINT = "https://haloruns.com/content/feeds/latestRecords.json"
+OLDEST_ENDPOINT = "https://haloruns.com/content/boards/oldest.json"
 NOTIFS_CHANNEL_ID = 491719347929219072 # Hard-coded #live-streams channel - need to change this if the channel gets replaced
 RECORDS_CHANNEL_ID = 600075722232692746 # Hard-coded #wr-runs channel - need to change this if the channel gets replaced
 TEST_CHANNEL = 818617029011177492 # Wackee's test channel
 #NOTIFS_CHANNEL_ID = TEST_CHANNEL##
 NO_STREAMS_TEXT = "Nobody is currently streaming" + "<:NotLikeThis:257718094049443850>" # Default text used when there are no current streamers
-DEFAULT_SOME_STREAMS = "To appear on the HaloRuns stream tracker, link your Twitch account at https://haloruns.com/link/editProfile\nFor a list of terms that will automatically hide your stream from being shown here (if you are not speedrunning or would prefer to have your stream hidden) you can use the .nohr command anywhere in the server, or DM me directly!\n- - - - - - - - - - - - -\nCURRENTLY LIVE:\n- - - - - - - - - - - - -" # Default text used when there are some current streamers
+DEFAULT_SOME_STREAMS = "To appear on the HaloRuns stream tracker, link your Twitch account at https://haloruns.com/\nFor a list of terms that will automatically hide your stream from being shown here (if you are not speedrunning or would prefer to have your stream hidden) you can use the .nohr command anywhere in the server, or DM me directly!\n- - - - - - - - - - - - -\nCURRENTLY LIVE:\n- - - - - - - - - - - - -" # Default text used when there are some current streamers
 SOME_STREAMS_TEXT=DEFAULT_SOME_STREAMS
 TUT_ENDPOINT = "haloruns.info/tutorial?id=" # Once we get tutorials off the ground, this can be used to add commands for any number of tutorials present on the .info site
 NOHR = open("nohr.txt").readline().strip().split(",")
@@ -133,7 +134,9 @@ async def apiRecentWRs():
         ###NOTE: this means there is no aggregation over time - leaving that to HaloRuns.com
 
         #records = requests.get(str(ENDPOINT + "records/recent" + "/12")).json()# - old
-        records = getJSON(str(ENDPOINT + "records/recent" + "/12"))
+        # Note to wackee: new endpoint is haloruns.com/content/feeds/latestRecords.json
+        #records = getJSON(str(ENDPOINT + "records/recent" + "/12"))
+        records = getJSON(str(RECORDS_ENDPOINT))
         file = open("records.json", "w+")
         json.dump(records, file)
         file.truncate()
@@ -158,26 +161,27 @@ async def announce(record):
         recordsChannel = mb.get_channel(RECORDS_CHANNEL_ID)
         try:
         # new method, trying to be cleaner about what data is being used; hopefully to be cleaned up more, maybe learn to create better objects for less json
-                prev_record = record["prev_record"]#better to split the previous record before messing with the json,^ again might wanna learn objects
+                #prev_record = record["prev_record"]#better to split the previous record before messing with the json,^ again might wanna learn objects
                 icon = parseIcon(record)
-                game = record["game_name"]
-                diff = record["difficulty_name"]
-                level = record["level_name"]
+                game = record["GameName"]
+                diff = record["Difficulty"]
+                level = record["LevelName"]
                 coop = isCoop(record)
-                levelUrl = record["il_board_url"]
-                runTime = record["time"]
-                vidUrl = record["vid"]
-                players = parsePlayers(record)
-                if prev_record != None:
-                        prevRunTime = prev_record["time"]
-                        prevVidUrl = prev_record["vid"]
-                        prevPlayers = parsePlayers(prev_record)
-                        timeDiff = str(convertTimes(record["prev_record"]["run_time"]-record["run_time"]))
-                        prevTimeStanding = getTimeStood(record, prev_record)
-                        oldestRank = ordinalize(findOldestRank(prev_record))
+                levelUrl = record["LeaderboardUrl"]
+                runTime = record["Duration"]
+                vidUrl = record["Participants"][0]["EvidenceLink"]
+                parsedPlayers = parsePlayers(record)
+                players = parsedPlayers[0]
+                if record["PreviousRecordId"] != "00000000-0000-0000-0000-000000000000":
+                        prevRunTime = record["PreviousRecordDuration"]
+                        prevVidUrl = record["Participants"][0]["EvidenceLink"]
+                        prevPlayers = players[1]
+                        timeDiff = str(convertTimes(getSecondsDiff(record["PreviousRecordDuration"], record["Duration"])))
+                        prevTimeStanding = getTimeStood((datetime.fromisoformat("PreviousRecordOccuredAt") - datetime.fromisoformat(record["OccuredAt"])).total_seconds())
+                        oldestRank = ordinalize(findOldestRank(record))
                 #split announcement for ease of printing, logging
-                if prev_record != None:
-                        announcement = f":trophy: **New Record!**    {icon}\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}\n\nPrevious Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nBeaten by {timeDiff}\nStanding for {prevTimeStanding},\n it was the {oldestRank} oldest {coop} record"
+                if record["PreviousRecordId"] != "00000000-0000-0000-0000-000000000000":
+                        announcement = f":trophy: **New Record!**    {icon}\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}\n\nPrevious Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nBeaten by {timeDiff}\nStanding for {prevTimeStanding},\n it was the {oldestRank} oldest record"#{coop} record"
                 else:
                 #if doesn't have previous:
                         announcement = f":trophy: **NEW RECORD!**    {icon}\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}"
@@ -205,24 +209,6 @@ def saveStreamsToFile(postedStreamList, filename):
                         file.append(stream + "\n")
                 file.truncate()
 
-def convertOldToNewStreamData(oldApiData):
-        apiData = {
-                "UpdatedAt": "",
-                "Entries": []
-                }
-        for element in oldApiData:
-                twitchUserNameFromUrl = element["stream"].split(".tv/")[1]
-                apiData["Entries"].append( {
-                        "TwitchUsername": twitchUserNameFromUrl,
-                        "GameName": element["game_name"],
-                        "Title": element["title"],
-                        "Viewers": element["viewers"],
-                        "Username": element["username"],
-                        "StreamUrl": element["stream"]
-                        } )
-        apiData["UpdatedAt"] = strftime("%Y-%m-%dT%H:%M:%S.%f0+00:00") # "2021-08-11T17:40:01.6580078+00:00" - fix later
-        return apiData
-
 async def maintainTwitchNotifs():
         ### Loops on sleep
         ### Pulls streams from API
@@ -230,10 +216,9 @@ async def maintainTwitchNotifs():
         ### Saves the stream list to file, then calls the purge function NOTE: maybe purging earlier
 
         while True:
-                await asyncio.sleep(10) # Timer to loop, better way but haven't gotten around to changing it
+                await asyncio.sleep(60) # Timer to loop, better way but haven't gotten around to changing it
                 print("Looking for streams to post") # CONSOLE OUT
-                oldApiData = getJSON(OLD_STREAMS_ENDPOINT) # Pull from OLD API
-                apiData = convertOldToNewStreamData(oldApiData)
+                apiData = getJSON(STREAMS_ENDPOINT)
                 responses = []
                 messageList = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
                 messageList = messageList[1:]
@@ -246,23 +231,32 @@ async def maintainTwitchNotifs():
                         for entry in apiData["Entries"]:
                                 apiList.append(entry["StreamUrl"].lower().rstrip())
                         for messageObject in messageList:
-                                if messageObject.content.lower().rstrip() not in apiList:
+                                if messageObject.content.lower() not in apiList:
                                         await messageObject.delete()
                         postedStreamList = await getPostedStreams() # Get newest channel feed
-                        for stream in apiList:
-                                if stream not in postedStreamList:
-                                        if stream not in temps.keys():
-                                                print(f"{stream} not in: {postedStreamList}")
-                                                responses.append(stream)
+                        for stream in apiData["Entries"]:
+                                if stream["StreamUrl"].lower() not in postedStreamList:
+                                        if stream["StreamUrl"].lower() not in temps.keys():
+                                                print(f"{stream['StreamUrl'].lower()} not in: {postedStreamList}")
+                                                ### TODO: get twitch user color and set in embed
+                                                embed = discord.Embed(title=f"Streaming {stream['GameName']}", description=f"\"{stream['Title']}\"", color=0x080808)
+                                                embed.set_author(name=f"{stream['Username']}", url=f"https://haloruns.com/profiles/{stream['Username'].lower()}")
+                                                ### TODO: Get Game Name from site when we get functionality to detect game.
+                                                embed.add_field(name="\u200b", value=f"[Watch Here]({stream['StreamUrl'].lower()})", inline=True)
+                                                embed.set_footer(text=f"{stream['Viewers']} Viewers | {stream['StreamUrl'].lower()}")
+                                                ### Not sure if we want viewer count, but its here if we do.
+                                                embed.set_thumbnail(url=f"{stream['ProfileImageUrl']}")
+                                                responses.append(embed)
                         streamsChannel = mb.get_channel(NOTIFS_CHANNEL_ID)
 
                         if responses != []:
                                 for response in responses:
-                                                await streamsChannel.send(response)
+                                                await streamsChannel.send(embed=response)
 
                 postedStreamList = await getPostedStreams() # Get updated channel feed
                 # saveStreamsToFile(postedStreamList, "streamlist.txt")
                # await purgeOldStreams(postedStreamList) folding into main maintenance
+
 
 def getTimeFormat(s):
         count = s.count(':')
@@ -330,11 +324,11 @@ async def lookForRecord():
                         oldRecords = await savedRecentWRs()
                         print("checking records")
                         newRecords = await apiRecentWRs()
-                        ids = []
-                        for element in oldRecords:
-                                ids.append(element["id"])
-                        for record in newRecords:
-                                if record['id'] not in ids:
+                        RunIds = []
+                        for element in oldRecords["Entries"]:
+                                RunIds.append(element["RunId"])
+                        for record in newRecords["Entries"]:
+                                if record['RunId'] not in RunIds:
                                         print("announcing!")
                                         await announce(record)
                 except:
@@ -343,23 +337,40 @@ async def lookForRecord():
 def convertTimes(seconds):
                 return '%d:%02d' % (seconds // 60 if seconds > 60 else 0, seconds % 60)
 
+def getSecondsDiff(time1, time2):
+        oldRecord = datetime.strptime(time1, "%H:%M:%S")
+        newRecord = datetime.strptime(time2, "%H:%M:%S")
+        return (oldRecord - newRecord).total_seconds()
+
 def isCoop(record):
-        return 'Co-op' if record["is_coop"] else 'Solo'
+        return 'Co-op' if record["IsCoop"] == True else 'Solo'
+
+#OLD# def findOldestRank(record):
+#         ### Returns the rank describing how old the record is
+#         #Backflip's suggestion:
+#         #return len(list(filter(lambda pastRecord: pastRecord["timestamp"] <= record["timestamp"], requests.get(str(ENDPOINT + "records/oldest")).json()))) + 1
+#         try:
+#                 recordsByOldest = requests.get(OLDEST_ENDPOINT).json()["Entries"]
+#                 soloRBO = [x for x in recordsByOldest if x['is_coop'] == False]
+#                 coopRBO = [x for x in recordsByOldest if x['is_coop'] == True]
+#                 if record['is_coop'] == False:
+#                         recordsToCheckAgainst = soloRBO
+#                 else:
+#                         recordsToCheckAgainst = coopRBO
+#                 for index, item in enumerate(recordsToCheckAgainst, 1): # clever optional argument to help with ordinalizing
+#                         if record["timestamp"] <= item["timestamp"]:
+#                                 return index
+#         except:
+#                 print("W E L L - oldest rank check failed")
 
 def findOldestRank(record):
         ### Returns the rank describing how old the record is
         #Backflip's suggestion:
         #return len(list(filter(lambda pastRecord: pastRecord["timestamp"] <= record["timestamp"], requests.get(str(ENDPOINT + "records/oldest")).json()))) + 1
         try:
-                recordsByOldest = requests.get(str(ENDPOINT + "records/oldest")).json()
-                soloRBO = [x for x in recordsByOldest if x['is_coop'] == False]
-                coopRBO = [x for x in recordsByOldest if x['is_coop'] == True]
-                if record['is_coop'] == False:
-                        recordsToCheckAgainst = soloRBO
-                else:
-                        recordsToCheckAgainst = coopRBO
-                for index, item in enumerate(recordsToCheckAgainst, 1): # clever optional argument to help with ordinalizing
-                        if record["timestamp"] <= item["timestamp"]:
+                recordsByOldest = requests.get(OLDEST_ENDPOINT).json()["Entries"]
+                for index, item in enumerate(recordsByOldest, 1): # clever optional argument to help with ordinalizing
+                        if record["RunId"] <= item["RunId"]:
                                 return index
         except:
                 print("W E L L - oldest rank check failed")
@@ -376,8 +387,8 @@ def ordinalize(rank):
                 suffix = SUFFIXES.get(rank % 10, 'th')
         return str(rank) + suffix
 
-def getTimeStood(record, prev_record):
-        secs = record["timestamp"] - prev_record["timestamp"]
+def getTimeStood(seconds):
+        secs = seconds #record["timestamp"] - prev_record["timestamp"]
         days = secs//86400
         hours = (secs - days*86400)//3600
         minutes = (secs - days*86400 - hours*3600)//60
@@ -414,11 +425,23 @@ def buildPlayerMD(player):
         return str("[%s](https://haloruns.com/profiles/%s)" % (player, player))
         
 def parsePlayers(record):
-        players = []
-        for player in record["runners"]:
-                if player != None:
-                        players.append(buildPlayerMD(player))
-        return " | ".join(players)
+        if record["IsCoop"] == True:
+                players = []
+                for player in record["Participants"]:
+                        players.append(buildPlayerMD(player["Username"]))
+                playersReturn = " | ".join(players)
+                oldPlayers = []
+                for player in record["PreviousRecordParticipants"]:
+                        oldPlayers.append(buildPlayerMD(player["Username"]))
+                oldPlayersReturn = " | ".join(oldPlayers)
+                return [playersReturn, oldPlayersReturn]
+        else:
+                players = []
+                for player in record["Participants"]:
+                        players.append(buildPlayerMD(player["Username"]))
+                playersReturn = " | ".join(players)
+                return [playersReturn]
+
 
 def parseIcon(record):
         return {
@@ -429,7 +452,8 @@ def parseIcon(record):
                 "Halo 3: ODST":"<:ODST:758288303106555944>",
                 "Halo: Reach":"<:Reach:758288303191228477>",
                 "Halo 4":"<:H4:758288302985707531>",
-                "Halo 5":"<:H5:758288303064612905>"
+                "Halo 5":"<:H5:758288303064612905>",
+                "Halo Infinite":"<:HInf:911881962388619296>"
                 }[record['game_name']]
 
 def getJSON(url): # New method of guaranteeing a valid JSON response - sometimes the bot crashes when bad data is returned, this aims to fix that
