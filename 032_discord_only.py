@@ -199,8 +199,11 @@ async def getPostedStreams():
         postedStreamList = []
         postedStreams = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first = True).flatten() # Ordered return of messages in the channel
         postedStreams = postedStreams[1:] # Retain first message in the list for a header post
-        for stream in postedStreams:
-                postedStreamList.append(stream.content.lower())
+        for streamMessage in postedStreams:
+                streamMessageContent = list(filter(lambda x: "[Watch Here]" in x.value, streamMessage.embeds[0].fields))
+                streamMessageContentString = streamMessageContent[0].value
+                streamMessageUrl = streamMessageContentString.split("]")[1].strip("()")
+                postedStreamList.append(streamMessageUrl)
         return postedStreamList
 
 def saveStreamsToFile(postedStreamList, filename):
@@ -216,23 +219,31 @@ async def maintainTwitchNotifs():
         ### Saves the stream list to file, then calls the purge function NOTE: maybe purging earlier
 
         while True:
-                await asyncio.sleep(60) # Timer to loop, better way but haven't gotten around to changing it
+                await asyncio.sleep(10) # Timer to loop, better way but haven't gotten around to changing it
                 print("Looking for streams to post") # CONSOLE OUT
                 apiData = getJSON(STREAMS_ENDPOINT)
                 responses = []
-                messageList = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
-                messageList = messageList[1:]
+                messageData = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
+                messageData = messageData[1:]
+                urlList = []
+                for message in messageData:
+                        messageContent = list(filter(lambda x: "[Watch Here]" in x.value, message.embeds[0].fields))
+                        messageContentString = messageContent[0].value
+                        messageUrl = messageContentString.split("]")[1].strip("()")
+                        urlList.append(messageUrl)
 
                 if len(apiData["Entries"]) == 0:
-                      for messageObject in messageList:
-                              await messageObject.delete()
+                      for messageObject in messageData:
+                              await messageData.delete()
                 else:
                         apiList = []
                         for entry in apiData["Entries"]:
                                 apiList.append(entry["StreamUrl"].lower().rstrip())
-                        for messageObject in messageList:
-                                if messageObject.content.lower() not in apiList:
-                                        await messageObject.delete()
+                        for url in urlList:
+                                if url not in apiList:
+                                        for messageObject in messageData:
+                                                if list(filter(lambda x: "[Watch Here]" in x.value, messageObject.embeds[0].fields))[0].value.split("]")[1].strip("()") == message:
+                                                        await messageObject.delete()
                         postedStreamList = await getPostedStreams() # Get newest channel feed
                         for stream in apiData["Entries"]:
                                 if stream["StreamUrl"].lower() not in postedStreamList:
@@ -254,8 +265,6 @@ async def maintainTwitchNotifs():
                                                 await streamsChannel.send(embed=response)
 
                 postedStreamList = await getPostedStreams() # Get updated channel feed
-                # saveStreamsToFile(postedStreamList, "streamlist.txt")
-               # await purgeOldStreams(postedStreamList) folding into main maintenance
 
 
 def getTimeFormat(s):
