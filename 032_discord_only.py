@@ -95,6 +95,43 @@ async def on_message(message):
             rules_embed = discord.Embed(description=rules_desc)
             await message.channel.send(embed=rules_embed)
 
+def getJSON(url):
+        ### Tries to return a valid JSON Response from a url
+        ### Sometimes the bot crashes when bad data is returned, this aims to fix that
+
+        print(f"Requesting JSON from: {url}")
+        attempts = 0
+        errorMessage = ""
+        while attempts < 10:
+                try:
+                        response = requests.get(url, verify=False)
+                except Exception as e:#ConnectionError
+                        if type(e) == type(ConnectionError):
+                                print("Connection ERROR")
+                                response = e                        
+                        else:
+                                response = e
+                try:
+                        responseDict = response.json()
+                        print(f"Successfully returned valid JSON object")
+                        return responseDict
+                except:
+                        print("NOT VALID JSON")
+
+                        if str(errorMessage) != str(response):
+                                print(f"NEW ERROR: {response}")
+                                attempts = 0
+                        else:
+                                print(f"ERROR: {response}")
+
+                        errorMessage = response
+                        #print(f"-------------\nRESPONSE\n-------------\n{response}\n-------------\nEND RESPONSE\n-------------\n")
+                        attempts += 1
+                        print(f"Retrying api request... {attempts} attempts ({5 * attempts} seconds before next request)\n")
+                        time.sleep(5 * attempts)
+        print("Timed out server request")
+        exit()
+
 async def apiRecentWRs():
         ### Returns the most recent records list, and replaces the locally stored records list with a new one.
 
@@ -114,6 +151,43 @@ async def savedRecentWRs():
                 oldRecords = await apiRecentWRs()
                 print("reset recent world records")
         return oldRecords
+        
+async def getPostedStreams():
+        ### Returns a list of strings, for the streams currently posted in the live-streams channel
+
+        postedStreamList = []
+        postedStreams = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first = True).flatten() # Ordered return of messages in the channel
+        topMessage = postedStreams[0]
+        postedStreams = postedStreams[1:] # Retain first message in the list for a header post
+        for streamMessage in postedStreams:
+                streamMessageUrl = messageToUrl(streamMessage)
+                postedStreamList.append(streamMessageUrl)
+        if NOTICE_TEXT != "":
+                await topMessage.edit(content=NOTICE_TEXT)
+        return postedStreamList
+        
+async def lookForRecord():
+        ### Upon a new record being added to the HR database, this catches it by checking the API against the locally stored records
+        ### It then calls the announce() function to push it to the Discord channel
+
+        while True:
+                await asyncio.sleep(20) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
+                try:
+                        oldRecords = await savedRecentWRs()
+                        print("checking records")
+                        newRecords = await apiRecentWRs()
+                        RunIds = []
+                        for element in oldRecords:
+                                RunIds.append(element["RunId"])
+                        for record in newRecords:
+                                if record['RunId'] not in RunIds:
+                                        # if record["Tie"] == False:
+                                        #         print("announcing!")
+                                        #         await announce(record)
+                                        print("announcing!")
+                                        await announce(record)
+                except:
+                        pass
 
 async def announce(record):
         ### Announces a new record, according to the announcement string:
@@ -149,20 +223,6 @@ async def announce(record):
                 await recordsChannel.send(embed=embedLink)
         except:
                 print("record announcement failed")
-
-async def getPostedStreams():
-        ### Returns a list of strings, for the streams currently posted in the live-streams channel
-
-        postedStreamList = []
-        postedStreams = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first = True).flatten() # Ordered return of messages in the channel
-        topMessage = postedStreams[0]
-        postedStreams = postedStreams[1:] # Retain first message in the list for a header post
-        for streamMessage in postedStreams:
-                streamMessageUrl = messageToUrl(streamMessage)
-                postedStreamList.append(streamMessageUrl)
-        if NOTICE_TEXT != "":
-                await topMessage.edit(content=NOTICE_TEXT)
-        return postedStreamList
 
 async def maintainTwitchNotifs():
         ### Loops on sleep
@@ -221,6 +281,8 @@ async def maintainTwitchNotifs():
                 if len(postedStreamList) > 0:
                         if NOTICE_TEXT == "":
                                 await topMessage.edit(content=SOME_STREAMS_TEXT)
+
+### Utility Functions ###
 
 def messageToUrl(message):
         ### Return Url contained in a live-stream embed message
@@ -293,29 +355,6 @@ async def getPoints(pb, wr, points):
                 pointsStr = "One of your times is probably not formatted correctly."
         finally:
                 return(help_string + pointsStr)
-
-async def lookForRecord():
-        ### Upon a new record being added to the HR database, this catches it by checking the API against the locally stored records
-        ### It then calls the announce() function to push it to the Discord channel
-
-        while True:
-                await asyncio.sleep(20) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
-                try:
-                        oldRecords = await savedRecentWRs()
-                        print("checking records")
-                        newRecords = await apiRecentWRs()
-                        RunIds = []
-                        for element in oldRecords:
-                                RunIds.append(element["RunId"])
-                        for record in newRecords:
-                                if record['RunId'] not in RunIds:
-                                        # if record["Tie"] == False:
-                                        #         print("announcing!")
-                                        #         await announce(record)
-                                        print("announcing!")
-                                        await announce(record)
-                except:
-                        pass
 
 def convertTimes(seconds):
         ### Converts seconds(int) to string
@@ -416,43 +455,6 @@ def parseIcon(record):
                 "Halo 5":"<:H5:758288303064612905>",
                 "Halo Infinite":"<:HInf:911881741038411787>"
                 }[record['GameName']]
-
-def getJSON(url):
-        ### Tries to return a valid JSON Response from a url
-        ### Sometimes the bot crashes when bad data is returned, this aims to fix that
-
-        print(f"Requesting JSON from: {url}")
-        attempts = 0
-        errorMessage = ""
-        while attempts < 10:
-                try:
-                        response = requests.get(url, verify=False)
-                except Exception as e:#ConnectionError
-                        if type(e) == type(ConnectionError):
-                                print("Connection ERROR")
-                                response = e                        
-                        else:
-                                response = e
-                try:
-                        responseDict = response.json()
-                        print(f"Successfully returned valid JSON object")
-                        return responseDict
-                except:
-                        print("NOT VALID JSON")
-
-                        if str(errorMessage) != str(response):
-                                print(f"NEW ERROR: {response}")
-                                attempts = 0
-                        else:
-                                print(f"ERROR: {response}")
-
-                        errorMessage = response
-                        #print(f"-------------\nRESPONSE\n-------------\n{response}\n-------------\nEND RESPONSE\n-------------\n")
-                        attempts += 1
-                        print(f"Retrying api request... {attempts} attempts ({5 * attempts} seconds before next request)\n")
-                        time.sleep(5 * attempts)
-        print("Timed out server request")
-        exit()
 
 mb.loop.create_task(lookForRecord())
 mb.loop.create_task(maintainTwitchNotifs())
