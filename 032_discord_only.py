@@ -83,21 +83,21 @@ async def on_message(message):
                 if len(message.content.lower().split()) == 2:
                         game = message.content.lower().split()[1]
                         if game == "reach":
-                                await message.channel.send("https://haloruns.com/timeCalc/reach")                
+                                await message.channel.send("https://haloruns.com/calc/reach")                
                         if game in ["h1", "hce", "ce"]:
-                                await message.channel.send("https://haloruns.com/timeCalc/hce") 
+                                await message.channel.send("https://haloruns.com/calc/hce") 
                         if game == "h2":
-                                await message.channel.send("https://haloruns.com/timeCalc/h2") 
+                                await message.channel.send("https://haloruns.com/calc/h2") 
                         if game == "h2a":
-                                await message.channel.send("https://haloruns.com/timeCalc/h2a") 
+                                await message.channel.send("https://haloruns.com/calc/h2a") 
                         if game == "h3":
-                                await message.channel.send("https://haloruns.com/timeCalc/h3") 
+                                await message.channel.send("https://haloruns.com/calc/h3") 
                         if game == "odst":
-                                await message.channel.send("https://haloruns.com/timeCalc/odst")
+                                await message.channel.send("https://haloruns.com/calc/odst")
                         if game == "h4":
-                                await message.channel.send("https://haloruns.com/timeCalc/h4") 
+                                await message.channel.send("https://haloruns.com/calc/h4") 
                         if game == "h5":
-                                await message.channel.send("https://haloruns.com/timeCalc/h5")
+                                await message.channel.send("https://haloruns.com/calc/h5")
         if ".nohr" in message.content.lower():
                             await message.channel.send(f"Add one of these tags to your stream title to be hidden from the stream list, when you don't want to be listed, or are doing something non-speedrun related\n{NOHR}")
         if ".keyes" in message.content.lower():
@@ -238,7 +238,7 @@ async def maintainTwitchNotifs():
                         for url in urlList:
                                 if url not in apiList:
                                         for messageObject in messageData:
-                                                if list(filter(lambda x: "[Watch Here]" in x.value, messageObject.embeds[0].fields))[0].value.split("]")[1].strip("()") == message:
+                                                if list(filter(lambda x: "[Watch Here]" in x.value, messageObject.embeds[0].fields))[0].value.split("]")[1].strip("()") == url:
                                                         await messageObject.delete()
                         postedStreamList = await getPostedStreams() # Get newest channel feed
                         for stream in apiData["Entries"]:
@@ -246,7 +246,7 @@ async def maintainTwitchNotifs():
                                         if stream["StreamUrl"].lower() not in temps.keys():
                                                 print(f"{stream['StreamUrl'].lower()} not in: {postedStreamList}")
                                                 ### TODO: get twitch user color and set in embed
-                                                embed = discord.Embed(title=f"Streaming {stream['GameName']}", description=f"\"{stream['Title']}\"", color=0x080808)
+                                                embed = discord.Embed(title=f"Streaming {stream['GameName']}", description=f"\"{stream['Title'].strip('"')}\"", color=0x080808)
                                                 embed.set_author(name=f"{stream['Username']}", url=f"https://haloruns.com/profiles/{stream['Username'].lower()}")
                                                 ### TODO: Get Game Name from site when we get functionality to detect game.
                                                 embed.add_field(name="\u200b", value=f"[Watch Here]({stream['StreamUrl'].lower()})", inline=True)
