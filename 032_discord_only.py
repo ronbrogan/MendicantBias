@@ -1,16 +1,12 @@
 from time import gmtime, strftime
-import os
 import requests
 import json
 from time import sleep
 from dateutil import parser
-import sched, time
+import time
 import asyncio
 import discord
 from discord.ext.commands import Bot
-import csv
-import sys
-#import datetime
 from datetime import datetime
 import time
 import math
@@ -34,15 +30,6 @@ SOME_STREAMS_TEXT=DEFAULT_SOME_STREAMS
 TUT_ENDPOINT = "haloruns.info/tutorial?id=" # Once we get tutorials off the ground, this can be used to add commands for any number of tutorials present on the .info site
 NOHR = open("nohr.txt").readline().strip().split(",")
 
-## Flags - Used to turn conditional behaviors on or off - crude, and should upgrade functionality
-RELAY = False
-RACE = False
-
-modIds = json.load(open("modIds.json", "r"))["modIds"]
-print(modIds)
-
-temps = {}
-
 @mb.event
 async def on_message(message):
         ### This needs to STOP - gotta find a way to make this cleaner
@@ -52,10 +39,6 @@ async def on_message(message):
                 await message.channel.send(
                         " It is known. It skips the plasmas from Goldie so its not really worth. It would save time in coop or if you picked up plasmas before the fling."
                         )
-        if message.content.lower() == ".race":
-                if RACE == True:#1==1:#RACE == True:
-                        delta = await raceCountdown(ret=True)#turned it off because of chaz
-                        #await message.channel.send(embed=discord.Embed(description=delta))#turned it off because of chaz
         if ".scarab_deload" == message.content.lower():
                 await message.channel.send(
                                 "If you reach the top of the stairs between 1:14 and 1:20 from the Scarab's initial spawn, it will deload. Full explanation at https://www.youtube.com/watch?v=j9fgKI74dwo"
@@ -118,16 +101,6 @@ async def on_message(message):
                         print(f"banning {link} from the stream list for the default timeout period")
                         await message.channel.send(retStr)
                         temps[link] = time.time()
-
-async def manageTemps():
-        while True:
-                await asyncio.sleep(10)
-                defTimeout = 60*60*8
-                timeout = defTimeout
-                for key in temps.keys():
-                        if time.time() > temps[key] + timeout:
-                                print(f"{temps.pop(temps[key])} removed from temp list")
-
 
 async def apiRecentWRs():
         ### Returns the most recent records list, and replaces the locally stored records list with a new one.
@@ -202,12 +175,6 @@ async def getPostedStreams():
                 postedStreamList.append(streamMessageUrl)
         return postedStreamList
 
-def saveStreamsToFile(postedStreamList, filename):
-        with open(filename, "a+") as file:
-                for stream in postedStreamList:
-                        file.append(stream + "\n")
-                file.truncate()
-
 async def maintainTwitchNotifs():
         ### Loops on sleep
         ### Pulls streams from API
@@ -243,19 +210,18 @@ async def maintainTwitchNotifs():
                         postedStreamList = await getPostedStreams() # Get newest channel feed
                         for stream in apiData["Entries"]:
                                 if stream["StreamUrl"].lower() not in postedStreamList:
-                                        if stream["StreamUrl"].lower() not in temps.keys():
-                                                print(f"{stream['StreamUrl'].lower()} not in: {postedStreamList}")
-                                                ### TODO: get twitch user color and set in embed
-                                                title = stream["Title"]
-                                                game = stream["GameName"]
-                                                embed = discord.Embed(title=f"Streaming {game}", description=f"\"{title}\"", color=0x080808)
-                                                embed.set_author(name=f"{stream['Username']}", url=f"https://haloruns.com/profiles/{stream['Username'].lower()}")
-                                                ### TODO: Get Game Name from site when we get functionality to detect game.
-                                                embed.add_field(name="\u200b", value=f"[Watch Here]({stream['StreamUrl'].lower()})", inline=True)
-                                                embed.set_footer(text=f"{stream['Viewers']} Viewers | {stream['StreamUrl'].lower()}")
-                                                ### Not sure if we want viewer count, but its here if we do.
-                                                embed.set_thumbnail(url=f"{stream['ProfileImageUrl']}")
-                                                responses.append(embed)
+                                        print(f"{stream['StreamUrl'].lower()} not in: {postedStreamList}")
+                                        ### TODO: get twitch user color and set in embed
+                                        title = stream["Title"]
+                                        game = stream["GameName"]
+                                        embed = discord.Embed(title=f"Streaming {game}", description=f"\"{title}\"", color=0x080808)
+                                        embed.set_author(name=f"{stream['Username']}", url=f"https://haloruns.com/profiles/{stream['Username'].lower()}")
+                                        ### TODO: Get Game Name from site when we get functionality to detect game.
+                                        embed.add_field(name="\u200b", value=f"[Watch Here]({stream['StreamUrl'].lower()})", inline=True)
+                                        embed.set_footer(text=f"{stream['Viewers']} Viewers | {stream['StreamUrl'].lower()}")
+                                        ### Not sure if we want viewer count, but its here if we do.
+                                        embed.set_thumbnail(url=f"{stream['ProfileImageUrl']}")
+                                        responses.append(embed)
                         streamsChannel = mb.get_channel(NOTIFS_CHANNEL_ID)
 
                         if responses != []:
@@ -264,17 +230,13 @@ async def maintainTwitchNotifs():
 
                 postedStreamList = await getPostedStreams() # Get updated channel feed
 
-
+#Haloruns Timestamp to datetime
 def H2I(timestamp):
         #zulu replacement
         zs = f'{timestamp.split(".")[1]}Z'
         return parser.parse(timestamp)
 
-
-        # ds = timestamp.split("T")][0]
-        # ts = timestamp.split("T")[1].split(".")[0]
-        # return f"{ds} {ts}"
-
+#Formats a time string for strptime
 def getTimeFormat(s):
         count = s.count(':')
         if count == 0:
@@ -293,11 +255,12 @@ def padTime(s):
         out += x[-1].zfill(2)
         return out
 
-async def getPoints(pb, wr):
+async def getPoints(pb, wr, points):
         pointsStr = ""
-        help_string = "Use like this: .points [hh:]mm:ss [hh:]mm:ss.\n"
+        help_string = "Use like this: .points [hh:]mm:ss [hh:]mm:ss MaxPoints\n"
         try:
                 print("checking points", pb, wr)
+                #replace periods for catching weird input?
                 pb = pb.replace('.', ':')
                 wr = wr.replace('.', ':')
 
@@ -316,11 +279,7 @@ async def getPoints(pb, wr):
                 if(wrTime > pbTime):
                         pbTime, wrTime = wrTime, pbTime # swap so PB is always larger
 
-                pointsExact = 0.008 * math.exp(4.8284*(wrTime.seconds/pbTime.seconds)) * 100
-
-                # If more than 30 minutes, this is probably a fullgame time
-                if (wrTime.seconds > 30 * 60):
-                        pointsExact *= 10
+                pointsExact = 0.008 * math.exp(4.8284*(wrTime.seconds/pbTime.seconds)) * points
 
                 print(pointsExact)
                 pointsStr = f"Your PB of {pbTime} against {wrTime} is worth {int(pointsExact)} points"
@@ -366,24 +325,6 @@ def getSecondsDiff(time1, time2):
 def isCoop(record):
         return 'Co-op' if record["IsCoop"] == True else 'Solo'
 
-#OLD# def findOldestRank(record):
-#         ### Returns the rank describing how old the record is
-#         #Backflip's suggestion:
-#         #return len(list(filter(lambda pastRecord: pastRecord["timestamp"] <= record["timestamp"], requests.get(str(ENDPOINT + "records/oldest")).json()))) + 1
-#         try:
-#                 recordsByOldest = requests.get(OLDEST_ENDPOINT).json()["Entries"]
-#                 soloRBO = [x for x in recordsByOldest if x['is_coop'] == False]
-#                 coopRBO = [x for x in recordsByOldest if x['is_coop'] == True]
-#                 if record['is_coop'] == False:
-#                         recordsToCheckAgainst = soloRBO
-#                 else:
-#                         recordsToCheckAgainst = coopRBO
-#                 for index, item in enumerate(recordsToCheckAgainst, 1): # clever optional argument to help with ordinalizing
-#                         if record["timestamp"] <= item["timestamp"]:
-#                                 return index
-#         except:
-#                 print("W E L L - oldest rank check failed")
-
 def findOldestRank(record):
         ### Returns the rank describing how old the record is
         #Backflip's suggestion:
@@ -424,27 +365,6 @@ def getTimeStood(seconds):
                 ("{0} second{1}, ".format(seconds, "s" if seconds!=1 else "") if seconds else "")
                 return result.rstrip(", ")
 
-async def raceCountdown(ret=False):
-        ### Replaces the top message in #live-streams with a countdown to an event, if RACE is set
-        dt = datetime
-        raceStartTime = dt(year=2021, month=3, day=13, hour=19)
-        if ret == True:
-                flat = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
-                now = dt.now()
-                delta = raceStartTime - now
-                return str(':'.join(str(delta).split(':')[:2])) + " until the #off-topic Marathon begins!\nWatch [Here](https://www.twitch.tv/HaloSpeedrunNetwork)"
-        while True:
-                await asyncio.sleep(20)
-                if RACE==True:
-                        flat = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
-                        now = dt.now()
-                        delta = raceStartTime - now
-                        oldestMessage = flat[0]
-#                        await oldestMessage.edit(content = str(':'.join(str(delta).split(':')[:2])) + " until the #off-topic Marathon!")
-                        await oldestMessage.edit(content = str("HaloRuns #off-topic Marathon is LIVE\nWatch at https://www.twitch.tv/HaloSpeedrunNetwork"))
-
-                return "Halo: Master Chief Collection"
-
 def buildPlayerMD(player):
         #print(str("[%s](https://haloruns.com/profiles/%s)" % (player, player)))
         return str("[%s](https://haloruns.com/profiles/%s)" % (player, player))
@@ -466,7 +386,6 @@ def parsePlayers(record):
                         players.append(buildPlayerMD(player["Username"]))
                 playersReturn = " | ".join(players)
                 return [playersReturn]
-
 
 def parseIcon(record):
         return {
@@ -514,8 +433,6 @@ def getJSON(url): # New method of guaranteeing a valid JSON response - sometimes
                         time.sleep(5 * attempts)
         print("Timed out server request")
         exit()
-mb.loop.create_task(manageTemps())
-mb.loop.create_task(raceCountdown())
 mb.loop.create_task(lookForRecord())
 mb.loop.create_task(maintainTwitchNotifs())
 mb.run(TOKEN)
