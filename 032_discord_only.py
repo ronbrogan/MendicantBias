@@ -13,7 +13,7 @@ import math
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-print(f"Version 2021.11.22\nDiscord Version: {discord.__version__}\n Credit Wackee\nBackflip\nScales\nXero\nNervy")
+print(f"Version 2021.11.22\nDiscord Version: {discord.__version__}\nCredit Wackee\nBackflip\nScales\nXero\nNervy")
 mb = Bot(command_prefix='!') # Creates the main bot object - asynchronous
 TOKEN = open("TOKEN.txt", "r").readline() # reads the token used by the bot from the local directory
 
