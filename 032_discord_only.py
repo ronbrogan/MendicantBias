@@ -97,7 +97,7 @@ async def on_message(message):
 
 async def apiRecentWRs():
         ### Returns the most recent records list, and replaces the locally stored records list with a new one.
-        
+
         records = getJSON(str(RECORDS_ENDPOINT))["Entries"]
         file = open("records.json", "w+")
         json.dump(records, file)
@@ -161,7 +161,7 @@ async def getPostedStreams():
                 streamMessageUrl = messageToUrl(streamMessage)
                 postedStreamList.append(streamMessageUrl)
         if NOTICE_TEXT != "":
-                topMessage.edit(content=NOTICE_TEXT)
+                await topMessage.edit(content=NOTICE_TEXT)
         return postedStreamList
 
 async def maintainTwitchNotifs():
@@ -188,7 +188,7 @@ async def maintainTwitchNotifs():
                 # For editing the Notice Text
                 if len(apiData["Entries"]) == 0:
                         if NOTICE_TEXT == "":
-                                topMessage.edit(content=NO_STREAMS_TEXT)
+                                await topMessage.edit(content=NO_STREAMS_TEXT)
                 else:
                         apiList = []
                         for entry in apiData["Entries"]:
@@ -220,7 +220,7 @@ async def maintainTwitchNotifs():
                 postedStreamList = await getPostedStreams() # Get updated channel feed
                 if len(postedStreamList) > 0:
                         if NOTICE_TEXT == "":
-                                topMessage.edit(content=SOME_STREAMS_TEXT)
+                                await topMessage.edit(content=SOME_STREAMS_TEXT)
 
 def messageToUrl(message):
         ### Return Url contained in a live-stream embed message
