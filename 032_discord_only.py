@@ -346,6 +346,9 @@ async def lookForRecord():
                                 RunIds.append(element["RunId"])
                         for record in newRecords:
                                 if record['RunId'] not in RunIds:
+                                        # if record["Tie"] == False:
+                                        #         print("announcing!")
+                                        #         await announce(record)
                                         print("announcing!")
                                         await announce(record)
                 except:
