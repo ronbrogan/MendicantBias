@@ -28,7 +28,7 @@ TEST_CHANNEL = 818617029011177492 # Wackee's test channel
 
 INFO_TEXT = "To appear on the HaloRuns stream tracker, link your Twitch account at https://haloruns.com/\nFor a list of terms that will automatically hide your stream from being shown here (if you are not speedrunning or would prefer to have your stream hidden) you can use the .nohr command anywhere in the server, or DM me directly!\n You can now also toggle your stream visibility from your HaloRuns Profile!"
 NO_STREAMS_TEXT = f"Nobody is currently streaming<:NotLikeThis:257718094049443850>\n{INFO_TEXT}" # Default text used when there are no current streamers
-DEFAULT_SOME_STREAMS = "{INFO_TEXT}\nCURRENTLY LIVE:\n- - - - - - - - - - - - -" # Default text used when there are some current streamers
+DEFAULT_SOME_STREAMS = f"{INFO_TEXT}\nCURRENTLY LIVE:\n- - - - - - - - - - - - -" # Default text used when there are some current streamers
 SOME_STREAMS_TEXT=DEFAULT_SOME_STREAMS
 
 NOTICE_TEXT = ""
