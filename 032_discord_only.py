@@ -173,7 +173,7 @@ async def announce(record):
                 players = parsedPlayers[0]
                 if record["PreviousRecordId"] != "00000000-0000-0000-0000-000000000000":
                         prevRunTime = record["PreviousRecordDuration"]
-                        prevVidUrl = record["Participants"][0]["EvidenceLink"]
+                        prevVidUrl = record["PreviousRecordParticipants"][0]["EvidenceLink"]
                         prevPlayers = parsedPlayers[1]
                         timeDiff = str(convertTimes(getSecondsDiff(record["PreviousRecordDuration"], record["Duration"])))
                         prevTimeStanding = getTimeStood(int((H2I(record["OccuredAt"]) - H2I(record["PreviousRecordOccuredAt"])).total_seconds()))
@@ -475,7 +475,7 @@ def parseIcon(record):
                 "Halo: Reach":"<:Reach:758288303191228477>",
                 "Halo 4":"<:H4:758288302985707531>",
                 "Halo 5":"<:H5:758288303064612905>",
-                "Halo Infinite":"<:HInf:911881962388619296>"
+                "Halo Infinite":"<:HInf:911881741038411787>"
                 }[record['GameName']]
 
 def getJSON(url): # New method of guaranteeing a valid JSON response - sometimes the bot crashes when bad data is returned, this aims to fix that
