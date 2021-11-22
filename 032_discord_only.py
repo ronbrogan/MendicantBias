@@ -230,7 +230,7 @@ async def maintainTwitchNotifs():
 
                 if len(apiData["Entries"]) == 0:
                       for messageObject in messageData:
-                              await messageData.delete()
+                              await messageObject.delete()
                 else:
                         apiList = []
                         for entry in apiData["Entries"]:
@@ -247,7 +247,7 @@ async def maintainTwitchNotifs():
                                                 print(f"{stream['StreamUrl'].lower()} not in: {postedStreamList}")
                                                 ### TODO: get twitch user color and set in embed
                                                 title = stream["Title"]
-                                                game = stream["GameName"].strip('"')
+                                                game = stream["GameName"]
                                                 embed = discord.Embed(title=f"Streaming {game}", description=f"\"{title}\"", color=0x080808)
                                                 embed.set_author(name=f"{stream['Username']}", url=f"https://haloruns.com/profiles/{stream['Username'].lower()}")
                                                 ### TODO: Get Game Name from site when we get functionality to detect game.
