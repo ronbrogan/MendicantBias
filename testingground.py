@@ -3,7 +3,7 @@ import argparse
 from ConfigParser import Config
 from CommandExec import CommandExec
 
-# Create global instance of our config
+# Create global instances
 CONFIG = Config()
 COMMAND_EXEC = CommandExec()
 

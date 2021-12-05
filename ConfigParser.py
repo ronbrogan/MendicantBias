@@ -21,8 +21,10 @@ class Config:
 
         # dictionary of commands
         # Text commands write simple text
+        # Embed commands embed the given text (discord embedding)
         # Function commands execute the specified function in the command executor
         self.text_commands = dict()
+        self.embed_commands = dict()
         self.func_commands = dict()
     # end __init__
 
@@ -36,19 +38,9 @@ class Config:
         self.records_source = self.parse_from_subtree(self.xml_root, "RecordsSource").text.strip()
         self.oldest_source = self.parse_from_subtree(self.xml_root, "OldestSource").text.strip()
 
-        print("StreamsSource:", self.streams_source)
-        print("RecordsSource:", self.records_source)
-        print("OldestSource:", self.oldest_source)
-        print("")
-
         self.notifs_channel = self.parse_from_subtree(self.xml_root, "NotifsChannelId").text.strip()
         self.records_channel = self.parse_from_subtree(self.xml_root, "RecordsChannelId").text.strip()
         self.test_channel = self.parse_from_subtree(self.xml_root, "TestChannelId").text.strip()
-
-        print("NotifsChannel:", self.notifs_channel)
-        print("RecordsChannel:", self.records_channel)
-        print("TestChannel:", self.test_channel)
-        print("")
 
         self.parse_commands(self.xml_root)
     # end parse
@@ -67,6 +59,7 @@ class Config:
     # parses list of commands
     def parse_commands(self, subtree):
         self.text_commands = dict()
+        self.embed_commands = dict()
         self.func_commands = dict()
 
         command_tree = self.parse_from_subtree(subtree, "Commands")
@@ -75,7 +68,8 @@ class Config:
                 raise ValueError("Command idx %d does not have an \"id\" attribute" % i)
 
             # If given an 'exec' child, this is a function command, else this must be a text command
-            # Throws exception if there is a child that is not <exec> or multiple children
+            # Throws exception if there is a child that is not one of our allowed nodes or
+            # we have more than one child
 
             # Get command identified (parsed from discord messages)
             id = command.attrib["id"].strip()
@@ -86,13 +80,20 @@ class Config:
             # Text command
             if(num_children == 0):
                 self.text_commands[id] = command.text.strip()
-            # Function command
+            # Special command
             elif(len(command) == 1):
+                # valid tags
+                embed = command.find("embed")
                 exec = command.find("exec")
-                if(exec is None):
-                    raise ValueError("Error at command id=%s: Child node is not <exec>" % (id,))
 
-                self.func_commands[id] = exec.text.strip()
+                # Add tags to their appropriate containers
+                if(embed is not None):
+                    self.embed_commands[id] = embed.text.strip()
+                elif(exec is not None):
+                    self.func_commands[id] = exec.text.strip()
+                else:
+                    raise ValueError("Error at command id=%s: Child node is not a valid tag" % (id,))
+
             # Error, too many children
             else:
                 raise ValueError( \

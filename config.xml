@@ -22,6 +22,10 @@
          <exec>calc</exec>
       </command>
 
+      <command id=".rules">
+         <embed>[Rules Page](https://haloruns.com/rules)\n[H2 Timing Video Guide](https://youtu.be/1DT7XwIDrwE)\n[Coop Forum Posts](https://haloruns.com/forums?t=595)\nPlease read the posts carefully, and ask question if you need some clarification</embed>
+      </command>
+
       <command id=".sc_fling">
          It is known. It skips the plasmas from Goldie so its not really worth. It would save time in coop or if you picked up plasmas before the fling.
       </command>
