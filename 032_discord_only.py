@@ -359,7 +359,18 @@ async def getPoints(pb, wr, points):
 def convertTimes(seconds):
         ### Converts seconds(int) to string
 
-        return '%d:%02d' % (seconds // 60 if seconds > 60 else 0, seconds % 60)
+        # Get hours, minutes, and seconds
+        minutes = seconds // 60
+        seconds = seconds % 60
+
+        hours = minutes // 60
+        minutes = minutes % 60
+
+        # Will only print with hours included if hours > 0
+        if(hours > 0):
+            return '%d:%02d:%02d' % (hours, minutes, seconds)
+        else:
+            return '%d:%02d' % (minutes, seconds)
 
 def getSecondsDiff(time1, time2):
         ### Returns the difference in seconds between two HMS time strings - maybe need to abs()?
