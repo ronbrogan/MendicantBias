@@ -212,7 +212,7 @@ def formatWRAnn(record):
     genre = parseGenre(record) # includes coop/solo, bit of a hack to get extras going
     extra = record["IsExtension"] # awaiting 
     levelUrl = record["LeaderboardUrl"]
-    runTime = record["Duration"]
+    runTime = strip_hour(record["Duration"])
     vidUrl = record["Participants"][0]["EvidenceLink"]
     parsedPlayers = parsePlayers(record)
     players = parsedPlayers[0]
@@ -222,7 +222,7 @@ def formatWRAnn(record):
     # if previous record exists:
     if record["PreviousRecordId"] != "00000000-0000-0000-0000-000000000000":
         notNew = True
-        prevRunTime = record["PreviousRecordDuration"]
+        prevRunTime = strip_hours(record["PreviousRecordDuration"])
         prevVidUrl = record["PreviousRecordParticipants"][0]["EvidenceLink"]
         prevPlayers = parsedPlayers[1]
         timeDiff = str(convertTimes(getSecondsDiff(record["PreviousRecordDuration"], record["Duration"])))
@@ -401,6 +401,19 @@ def convertTimes(seconds):
     else:
         return '%d:%02d' % (minutes, seconds)
 
+def strip_hour(x):
+    x_split = x.split(":")
+
+    # If we have a 0 in the hour part, we will remove the hour
+    if(int(x_split[0]) == 0):
+        x = ":".join(x_split[1:])
+
+    # if there is a leading 0 in minutes, remove that
+    if(x[0] == "0"):
+        x = x[1:]
+
+    return x
+
 def getSecondsDiff(time1, time2):
     ### Returns the difference in seconds between two HMS time strings - maybe need to abs()?
 
@@ -503,19 +516,6 @@ def parseIcon(record):
         return "<:haloruns:230158630593232897>"
     else:
         return icons[record["GameName"]]
-
-def strip_hour(x):
-    x_split = x.split(":")
-
-    # If we have a 0 in the hour part, we will remove the hour
-    if(int(x_split[0]) == 0):
-        x = ":".join(x_split[1:])
-
-    # if there is a leading 0 in minutes, remove that
-    if(x[0] == "0"):
-        x = x[1:]
-
-    return x
 
 mb.loop.create_task(lookForRecord())
 mb.loop.create_task(maintainTwitchNotifs())
