@@ -222,7 +222,7 @@ def formatWRAnn(record):
     # if previous record exists:
     if record["PreviousRecordId"] != "00000000-0000-0000-0000-000000000000":
         notNew = True
-        prevRunTime = strip_hours(record["PreviousRecordDuration"])
+        prevRunTime = strip_hour(record["PreviousRecordDuration"])
         prevVidUrl = record["PreviousRecordParticipants"][0]["EvidenceLink"]
         prevPlayers = parsedPlayers[1]
         timeDiff = str(convertTimes(getSecondsDiff(record["PreviousRecordDuration"], record["Duration"])))
