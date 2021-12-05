@@ -14,6 +14,14 @@
    <!-- List of commands that the bot will respond to -->
    <!-- NOTE: Commands are case insensitive -->
    <Commands>
+      <command id=".points">
+         <exec>points</exec>
+      </command>
+
+      <command id=".calc">
+         <exec>calc</exec>
+      </command>
+
       <command id=".sc_fling">
          It is known. It skips the plasmas from Goldie so its not really worth. It would save time in coop or if you picked up plasmas before the fling.
       </command>

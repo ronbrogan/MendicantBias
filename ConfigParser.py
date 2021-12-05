@@ -20,7 +20,11 @@ class Config:
         self.test_channel = None
 
         # dictionary of commands
-        self.commands = dict()
+        # Text commands write simple text
+        # Function commands execute the specified function in the command executor
+        self.text_commands = dict()
+        self.func_commands = dict()
+    # end __init__
 
     # parse
     def parse(self, config_file):
@@ -47,14 +51,7 @@ class Config:
         print("")
 
         self.parse_commands(self.xml_root)
-
-    # execute_command
-    # NOTE: Will likely want some kind of actual command execution class, but this works for now
-    def execute_command(self, command):
-        if(command not in self.commands.keys()):
-            print("ERROR: No such command")
-        else:
-            print(self.commands[command])
+    # end parse
 
     # parse_from_subtree
     def parse_from_subtree(self, subtree, elem):
@@ -65,16 +62,40 @@ class Config:
             raise ValueError("Could not find xml child %s from subtree %s" % (elem, subtree))
 
         return ret
+    # end parse_from_subtree
 
     # parses list of commands
     def parse_commands(self, subtree):
-        self.commands = dict()
+        self.text_commands = dict()
+        self.func_commands = dict()
+
         command_tree = self.parse_from_subtree(subtree, "Commands")
         for i, command in enumerate(command_tree.findall("command")):
             if("id" not in command.attrib.keys()):
                 raise ValueError("Command idx %d does not have an \"id\" attribute" % i)
 
-            id = command.attrib["id"].strip()
-            body = command.text.strip()
+            # If given an 'exec' child, this is a function command, else this must be a text command
+            # Throws exception if there is a child that is not <exec> or multiple children
 
-            self.commands[id] = body
+            # Get command identified (parsed from discord messages)
+            id = command.attrib["id"].strip()
+
+            # Number of child nodes (should be 0 or 1)
+            num_children = len(command)
+
+            # Text command
+            if(num_children == 0):
+                self.text_commands[id] = command.text.strip()
+            # Function command
+            elif(len(command) == 1):
+                exec = command.find("exec")
+                if(exec is None):
+                    raise ValueError("Error at command id=%s: Child node is not <exec>" % (id,))
+
+                self.func_commands[id] = exec.text.strip()
+            # Error, too many children
+            else:
+                raise ValueError( \
+                    "Error at command id=%s: Too many child nodes. Should either be none, or 1 " \
+                    "(<exec>)" % (id,))
+    # end parse_commands

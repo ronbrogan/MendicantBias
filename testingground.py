@@ -1,9 +1,11 @@
 import argparse
 
 from ConfigParser import Config
+from CommandExec import CommandExec
 
 # Create global instance of our config
 CONFIG = Config()
+COMMAND_EXEC = CommandExec()
 
 # parse_args
 def parse_args():
@@ -19,10 +21,21 @@ def main():
 
     CONFIG.parse(args.config)
 
+    print("Testing ground for command (type 'exit' to exit)")
     while True:
         print("")
-        command = input("Enter command > ")
-        CONFIG.execute_command(command)
+        full_command = input("Enter command > ")
+
+        if(full_command.strip() == "exit"):
+            break
+
+        full_command_split = full_command.split()
+
+        # Command portion
+        command = full_command_split[0]
+        args = full_command_split[1:]
+
+        COMMAND_EXEC.exec(CONFIG, command, args)
 
     return
 
