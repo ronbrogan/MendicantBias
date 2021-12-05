@@ -98,5 +98,5 @@ class Config:
             else:
                 raise ValueError( \
                     "Error at command id=%s: Too many child nodes. Should either be none, or 1 " \
-                    "(<exec>)" % (id,))
+                     % (id,))
     # end parse_commands

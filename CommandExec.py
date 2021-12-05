@@ -9,6 +9,7 @@ class CommandExec:
         # Text command
         if(comm in config.text_commands.keys()):
             print(config.text_commands[comm])
+        # Embed command
         elif(comm in config.embed_commands.keys()):
             print("DISCORD EMBEDDING:")
             print(config.embed_commands[comm])
