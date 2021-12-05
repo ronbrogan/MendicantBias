@@ -195,34 +195,64 @@ async def announce(record):
         ### what rank in Oldest Records it was
 
         recordsChannel = mb.get_channel(RECORDS_CHANNEL_ID)
-        try:
-                icon = parseIcon(record)
-                game = record["GameName"]
-                diff = record["Difficulty"]
-                level = record["LevelName"]
-                coop = isCoop(record)
-                levelUrl = record["LeaderboardUrl"]
-                runTime = record["Duration"]
-                vidUrl = record["Participants"][0]["EvidenceLink"]
-                parsedPlayers = parsePlayers(record)
-                players = parsedPlayers[0]
-                # if previous record exists:
-                if record["PreviousRecordId"] != "00000000-0000-0000-0000-000000000000":
-                        prevRunTime = record["PreviousRecordDuration"]
-                        prevVidUrl = record["PreviousRecordParticipants"][0]["EvidenceLink"]
-                        prevPlayers = parsedPlayers[1]
-                        timeDiff = str(convertTimes(getSecondsDiff(record["PreviousRecordDuration"], record["Duration"])))
-                        prevTimeStanding = getTimeStood(int((H2I(record["OccuredAt"]) - H2I(record["PreviousRecordOccuredAt"])).total_seconds()))
-                        oldestRank = ordinalize(findOldestRank(record))
-                        announcement = f":trophy: **New Record!**    {icon}\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}\n\nPrevious Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nBeaten by {timeDiff}\nStanding for {prevTimeStanding},\nit was the {oldestRank} oldest record"#{coop} record"
-                # if doesn't have previous:
-                else:
-                        announcement = f":trophy: **NEW RECORD!**    {icon}\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}"
-                print(announcement)
+        #announcement = formatWRAnn(record)
+        icon = parseIcon(record)
+        game = record["GameName"]
+        diff = record["Difficulty"]
+        level = record["LevelName"]
+        coop = isCoop(record)
+        levelUrl = record["LeaderboardUrl"]
+        runTime = record["Duration"]
+        vidUrl = record["Participants"][0]["EvidenceLink"]
+        parsedPlayers = parsePlayers(record)
+        players = parsedPlayers[0]
+        # if previous record exists:
+        if record["PreviousRecordId"] != "00000000-0000-0000-0000-000000000000":
+                prevRunTime = record["PreviousRecordDuration"]
+                prevVidUrl = record["PreviousRecordParticipants"][0]["EvidenceLink"]
+                prevPlayers = parsedPlayers[1]
+                timeDiff = str(convertTimes(getSecondsDiff(record["PreviousRecordDuration"], record["Duration"])))
+                prevTimeStanding = getTimeStood(int((H2I(record["OccuredAt"]) - H2I(record["PreviousRecordOccuredAt"])).total_seconds()))
+                oldestRank = ordinalize(findOldestRank(record))
+                announcement = f":trophy: **New Record!**    {icon}\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}\n\nPrevious Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nBeaten by {timeDiff}\nStanding for {prevTimeStanding},\nit was the {oldestRank} oldest record"#{coop} record"
+        # if doesn't have previous:
+        else:
+                announcement = f":trophy: **New Record!**    {icon}\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}"
+        print(announcement)
+        #cut here
+        if record["Tie"] == False:
                 embedLink = discord.Embed(description=announcement, color=0xff0000)
                 await recordsChannel.send(embed=embedLink)
-        except:
-                print("record announcement failed")
+
+def formatWRAnn(record):
+        icon = parseIcon(record)
+        game = record["GameName"]
+        diff = record["Difficulty"]
+        level = record["LevelName"]
+        coop = isCoop(record)
+        levelUrl = record["LeaderboardUrl"]
+        runTime = record["Duration"]
+        vidUrl = record["Participants"][0]["EvidenceLink"]
+        parsedPlayers = parsePlayers(record)
+        players = parsedPlayers[0]
+        # if previous record exists:
+        if record["PreviousRecordId"] != "00000000-0000-0000-0000-000000000000":
+                prevRunTime = record["PreviousRecordDuration"]
+                prevVidUrl = record["PreviousRecordParticipants"][0]["EvidenceLink"]
+                prevPlayers = parsedPlayers[1]
+                timeDiff = str(convertTimes(getSecondsDiff(record["PreviousRecordDuration"], record["Duration"])))
+                prevTimeStanding = getTimeStood(int((H2I(record["OccuredAt"]) - H2I(record["PreviousRecordOccuredAt"])).total_seconds()))
+                oldestRank = ordinalize(findOldestRank(record))
+        
+        
+
+
+                announcement = f":trophy: **New Record!**    {icon}\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}\n\nPrevious Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}\nBeaten by {timeDiff}\nStanding for {prevTimeStanding},\nit was the {oldestRank} oldest record"#{coop} record"
+        # if doesn't have previous:
+        else:
+                announcement = f":trophy: **New Record!**    {icon}\n{game} {diff} - [{level} {coop}]({levelUrl}) | [{runTime}]({vidUrl})\nSet by: {players}"
+        print(announcement)
+        return announcement
 
 async def maintainTwitchNotifs():
         ### Loops on sleep
@@ -240,10 +270,16 @@ async def maintainTwitchNotifs():
                 messageData = messageData[1:]
                 urlList = []
                 for message in messageData:
-                        messageContent = list(filter(lambda x: "[Watch Here]" in x.value, message.embeds[0].fields))
-                        messageContentString = messageContent[0].value
-                        messageUrl = messageContentString.split("]")[1].strip("()")
+                        messageUrl = messageToUrl(message)
                         urlList.append(messageUrl)
+
+                # Purge posted streams                 
+                for url in urlList:
+                        if url not in apiList:
+                                for messageObject in messageData:
+                                        if messageToUrl(messageObject) == url:
+                                                print(f"Attempting to remove {url}")
+                                                await messageObject.delete()
 
                 # For editing the Notice Text
                 if len(apiData["Entries"]) == 0:
@@ -253,11 +289,6 @@ async def maintainTwitchNotifs():
                         apiList = []
                         for entry in apiData["Entries"]:
                                 apiList.append(entry["StreamUrl"].lower().rstrip())
-                        for url in urlList:
-                                if url not in apiList:
-                                        for messageObject in messageData:
-                                                if messageToUrl(messageObject) == url:
-                                                        await messageObject.delete()
                         postedStreamList = await getPostedStreams() # Get newest channel feed
                         for stream in apiData["Entries"]:
                                 if stream["StreamUrl"].lower() not in postedStreamList:
@@ -359,7 +390,18 @@ async def getPoints(pb, wr, points):
 def convertTimes(seconds):
         ### Converts seconds(int) to string
 
-        return '%d:%02d' % (seconds // 60 if seconds > 60 else 0, seconds % 60)
+        # Get hours, minutes, and seconds
+        minutes = seconds // 60
+        seconds = seconds % 60
+
+        hours = minutes // 60
+        minutes = minutes % 60
+
+        # Will only print with hours included if hours > 0
+        if(hours > 0):
+            return '%d:%02d:%02d' % (hours, minutes, seconds)
+        else:
+            return '%d:%02d' % (minutes, seconds)
 
 def getSecondsDiff(time1, time2):
         ### Returns the difference in seconds between two HMS time strings - maybe need to abs()?
@@ -443,18 +485,20 @@ def parsePlayers(record):
 
 def parseIcon(record):
         ### Returns the string for a relevant discord icon, from a record entry
-
-        return {
-                "Halo CE":"<:CE:758288302738112543>",
-                "Halo 2":"<:H2:758288302423277620>",
-                "Halo 2 MCC":"<:H2:758288302423277620>",
-                "Halo 3":"<:H3:758288302863941652>",
-                "Halo 3: ODST":"<:ODST:758288303106555944>",
-                "Halo: Reach":"<:Reach:758288303191228477>",
-                "Halo 4":"<:H4:758288302985707531>",
-                "Halo 5":"<:H5:758288303064612905>",
-                "Halo Infinite":"<:HInf:911881741038411787>"
-                }[record['GameName']]
+        try:
+                return {
+                        "Halo CE":"<:CE:758288302738112543>",
+                        "Halo 2":"<:H2:758288302423277620>",
+                        "Halo 2 MCC":"<:H2:758288302423277620>",
+                        "Halo 3":"<:H3:758288302863941652>",
+                        "Halo 3: ODST":"<:ODST:758288303106555944>",
+                        "Halo: Reach":"<:Reach:758288303191228477>",
+                        "Halo 4":"<:H4:758288302985707531>",
+                        "Halo 5":"<:H5:758288303064612905>",
+                        "Halo Infinite":"<:HInf:911881741038411787>"
+                        }[record['GameName']]
+        except:
+                return "<:haloruns:230158630593232897>"
 
 mb.loop.create_task(lookForRecord())
 mb.loop.create_task(maintainTwitchNotifs())
