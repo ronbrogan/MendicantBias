@@ -1,4 +1,4 @@
-from time import gmtime, strftime, timezone
+from time import gmtime, strftime
 import requests
 import json
 from time import sleep
@@ -7,8 +7,7 @@ import time
 import asyncio
 import discord
 from discord.ext.commands import Bot
-from datetime import datetime, timedelta
-import time
+from datetime import datetime, timedelta, tzinfo, timezone
 import math
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -180,7 +179,7 @@ async def lookForRecord():
 
     while True:
         await asyncio.sleep(20) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
-        if int((H2I(updatedAt()) - datetime.now(tz=timezone(timedelta(0)))).total_seconds()) > RECORDS_THROTTLE:
+        if int( (H2I(updatedAt() ) - datetime.now(timezone.utc) ).total_seconds() ) > RECORDS_THROTTLE:
             try:
                 oldRecords = await savedRecentWRs()
                 print("checking records")
@@ -272,7 +271,7 @@ async def maintainTwitchNotifs():
     while True:
         await asyncio.sleep(10) # Timer to loop, better way but haven't gotten around to changing it
         #todo: slow down traffic using lastUpdated - 1 minute intervals at least
-        if int((H2I(updatedAt()) - datetime.now(tz=timezone(timedelta(0)))).total_seconds()) > RECORDS_THROTTLE:
+        if int( (H2I(updatedAt() ) - datetime.now(timezone.utc) ).total_seconds() ) > STREAMS_THROTTLE:
             print("Looking for streams to post")
             apiData = getJSON(STREAMS_ENDPOINT)
             responses = []
