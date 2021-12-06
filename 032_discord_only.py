@@ -1,4 +1,4 @@
-from time import gmtime, strftime
+from time import gmtime, strftime, timezone
 import requests
 import json
 from time import sleep
@@ -7,7 +7,7 @@ import time
 import asyncio
 import discord
 from discord.ext.commands import Bot
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import math
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -180,7 +180,7 @@ async def lookForRecord():
 
     while True:
         await asyncio.sleep(20) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
-        if int((H2I(updatedAt()) - datetime.now()).total_seconds()) > RECORDS_THROTTLE:
+        if int((H2I(updatedAt()) - datetime.now(tz=timezone(timedelta(0)))).total_seconds()) > RECORDS_THROTTLE:
             try:
                 oldRecords = await savedRecentWRs()
                 print("checking records")
@@ -272,7 +272,7 @@ async def maintainTwitchNotifs():
     while True:
         await asyncio.sleep(10) # Timer to loop, better way but haven't gotten around to changing it
         #todo: slow down traffic using lastUpdated - 1 minute intervals at least
-        if int((H2I(updatedAt()) - datetime.now()).total_seconds()) > RECORDS_THROTTLE:
+        if int((H2I(updatedAt()) - datetime.now(tz=timezone(timedelta(0)))).total_seconds()) > RECORDS_THROTTLE:
             print("Looking for streams to post")
             apiData = getJSON(STREAMS_ENDPOINT)
             responses = []
@@ -328,7 +328,7 @@ async def maintainTwitchNotifs():
                     await topMessage.edit(content=SOME_STREAMS_TEXT)
         else:
             logEvent("Throttled streams poll")
-            print("Throttled streams poll")
+            print(f"Throttled streams poll")
 
 ### Utility Functions ###
 
@@ -538,7 +538,7 @@ def parseIcon(record):
 
 def logEvent(event):
     file = open("log.txt", "a")
-    file.write(f"{strftime('%a, %d %b %Y %H:%M:%S +0000', gmtime())} || {event}")
+    file.write(f"{strftime('%a, %d %b %Y %H:%M:%S', gmtime())} || {event}")
     file.close()
 
 mb.loop.create_task(lookForRecord())
