@@ -136,8 +136,11 @@ def getJSON(url):
     print("Timed out server request")
     exit()
 
-def updatedAt():
-    return json.load(open("streams.json", "r"))["UpdatedAt"]
+def updatedAt(data):
+    if data == "streams":
+        return json.load(open("streams.json", "r"))["UpdatedAt"]
+    if data == "records":
+        return json.load(open("records.json", "r"))["UpdatedAt"]
 
 async def apiRecentWRs():
     ### Returns the most recent records list, and replaces the locally stored records list with a new one.
@@ -147,10 +150,11 @@ async def apiRecentWRs():
     json.dump(records, file)
     file.truncate()
     file.close()
+    # print(f"Records log updated {records['UpdatedAt']}")
     entryNames = []
     for entry in records["Entries"]:
         entryNames.append(entry["Participants"][0]["Username"])
-    print(f"API DATA:\n{entryNames}")
+    # print(f"API DATA:\n{entryNames}")
     return records["Entries"]
 
 async def savedRecentWRs():
@@ -164,7 +168,7 @@ async def savedRecentWRs():
     entryNames = []
     for entry in oldRecords["Entries"]:
         entryNames.append(entry["Participants"][0]["Username"])
-    print(f"SAVED DATA:\n{entryNames}")
+    # print(f"SAVED DATA:\n{entryNames}")
     return oldRecords["Entries"]
 
 async def getPostedStreams():
@@ -187,7 +191,7 @@ async def lookForRecord():
 
     while True:
         await asyncio.sleep(20) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
-        diff = int( (datetime.now(timezone.utc) - H2I(updatedAt()) ).total_seconds())
+        diff = int( (datetime.now(timezone.utc) - H2I(updatedAt("records")) ).total_seconds())
         if diff > STREAMS_THROTTLE:
             print("diff too high, calling records")
             try:
@@ -288,7 +292,7 @@ async def maintainTwitchNotifs():
         await asyncio.sleep(10) # Timer to loop, better way but haven't gotten around to changing it
         #todo: slow down traffic using lastUpdated - 1 minute intervals at least
         #                                      datetime.datetime
-        diff = int( (datetime.now(timezone.utc) - H2I(updatedAt()) ).total_seconds())
+        diff = int( (datetime.now(timezone.utc) - H2I(updatedAt("streams")) ).total_seconds())
         if diff > STREAMS_THROTTLE:
             print("diff too high, calling streams")
             print("Looking for streams to post")
