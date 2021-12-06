@@ -203,7 +203,7 @@ async def lookForRecord():
                         #         print("announcing!")
                         #         await announce(record)
                         print("announcing!")
-                        #await announce(record)
+                        await announce(record)
             except:
                 logEvent("Problem in lookForRecord")
         else:
