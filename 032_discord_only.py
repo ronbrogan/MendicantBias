@@ -137,7 +137,7 @@ def getJSON(url):
     exit()
 
 def updatedAt():
-    return json.load(open("records.json", "r"))["UpdatedAt"]
+    return json.load(open("streams.json", "r"))["UpdatedAt"]
 
 async def apiRecentWRs():
     ### Returns the most recent records list, and replaces the locally stored records list with a new one.
@@ -147,6 +147,10 @@ async def apiRecentWRs():
     json.dump(records, file)
     file.truncate()
     file.close()
+    entryNames = []
+    for entry in records["Entries"]:
+        entryNames.append(entry["Participants"][0]["Username"])
+    print(f"API DATA:\n{entryNames}")
     return records["Entries"]
 
 async def savedRecentWRs():
@@ -157,6 +161,10 @@ async def savedRecentWRs():
     except :
         oldRecords = await apiRecentWRs()
         print("reset recent world records")
+    entryNames = []
+    for entry in oldRecords["Entries"]:
+        entryNames.append(entry["Participants"][0]["Username"])
+    print(f"SAVED DATA:\n{entryNames}")
     return oldRecords["Entries"]
 
 async def getPostedStreams():
@@ -179,7 +187,9 @@ async def lookForRecord():
 
     while True:
         await asyncio.sleep(20) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
-        if int( (datetime.now(timezone.utc) - H2I(updatedAt())) .total_seconds() ) > RECORDS_THROTTLE:
+        diff = int( (datetime.now(timezone.utc) - H2I(updatedAt()) ).total_seconds())
+        if diff > STREAMS_THROTTLE:
+            print("diff too high, calling records")
             try:
                 oldRecords = await savedRecentWRs()
                 print("checking records")
@@ -193,7 +203,7 @@ async def lookForRecord():
                         #         print("announcing!")
                         #         await announce(record)
                         print("announcing!")
-                        await announce(record)
+                        #await announce(record)
             except:
                 logEvent("Problem in lookForRecord")
         else:
@@ -262,6 +272,12 @@ def formatWRAnn(record):
     print(announcement)
     return (announcement, embedConfig)
 
+def saveStreamList(apiData):
+    file = open("streams.json", "w+")
+    json.dump(apiData, file)
+    file.truncate()
+    file.close()
+
 async def maintainTwitchNotifs():
     ### Loops on sleep
     ### Pulls streams from API
@@ -272,9 +288,14 @@ async def maintainTwitchNotifs():
         await asyncio.sleep(10) # Timer to loop, better way but haven't gotten around to changing it
         #todo: slow down traffic using lastUpdated - 1 minute intervals at least
         #                                      datetime.datetime
-        if int( (datetime.now(timezone.utc) - H2I(updatedAt()) ).total_seconds() ) > STREAMS_THROTTLE:
+        diff = int( (datetime.now(timezone.utc) - H2I(updatedAt()) ).total_seconds())
+        if diff > STREAMS_THROTTLE:
+            print("diff too high, calling records")
             print("Looking for streams to post")
             apiData = getJSON(STREAMS_ENDPOINT)
+
+            saveStreamList(apiData)
+
             responses = []
             messageData = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
             topMessage = messageData[0]
@@ -327,7 +348,7 @@ async def maintainTwitchNotifs():
                 if NOTICE_TEXT == "":
                     await topMessage.edit(content=SOME_STREAMS_TEXT)
         else:
-            logEvent("Throttled streams poll")
+            #logEvent("Throttled streams poll")
             print(f"Throttled streams poll")
 
 ### Utility Functions ###
@@ -538,7 +559,7 @@ def parseIcon(record):
 
 def logEvent(event):
     file = open("log.txt", "a")
-    file.write(f"{strftime('%a, %d %b %Y %H:%M:%S', gmtime())} || {event}")
+    file.write(f"{strftime('%a, %d %b %Y %H:%M:%S', gmtime())} || {event}\n")
     file.close()
 
 mb.loop.create_task(lookForRecord())
