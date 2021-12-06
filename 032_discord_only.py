@@ -35,6 +35,11 @@ NOTICE_TEXT = ""
 
 NOHR = open("nohr.txt").readline().strip().split(",")
 
+THROTTLE = 300 # not yet used
+STREAMS_THROTTLE = 120 # seconds between allowing an update
+RECORDS_THROTTLE = 120 # seconds between allowing an update
+
+
 @mb.event
 async def on_message(message):
     ### This needs to STOP - gotta find a way to make this cleaner
@@ -132,15 +137,18 @@ def getJSON(url):
     print("Timed out server request")
     exit()
 
+def updatedAt():
+    return json.load(open("records.json", "r"))["UpdatedAt"]
+
 async def apiRecentWRs():
     ### Returns the most recent records list, and replaces the locally stored records list with a new one.
 
-    records = getJSON(str(RECORDS_ENDPOINT))["Entries"]
+    records = getJSON(str(RECORDS_ENDPOINT))
     file = open("records.json", "w+")
     json.dump(records, file)
     file.truncate()
     file.close()
-    return records
+    return records["Entries"]
 
 async def savedRecentWRs():
     ### Returns the locally stored records list, or creates one from the haloruns API if not present before returning
@@ -150,7 +158,7 @@ async def savedRecentWRs():
     except :
         oldRecords = await apiRecentWRs()
         print("reset recent world records")
-    return oldRecords
+    return oldRecords["Entries"]
 
 async def getPostedStreams():
     ### Returns a list of strings, for the streams currently posted in the live-streams channel
@@ -172,22 +180,25 @@ async def lookForRecord():
 
     while True:
         await asyncio.sleep(20) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
-        try:
-            oldRecords = await savedRecentWRs()
-            print("checking records")
-            newRecords = await apiRecentWRs()
-            RunIds = []
-            for element in oldRecords:
-                RunIds.append(element["RunId"])
-            for record in newRecords:
-                if record['RunId'] not in RunIds:
-                    # if record["Tie"] == False:
-                    #         print("announcing!")
-                    #         await announce(record)
-                    print("announcing!")
-                    await announce(record)
-        except:
-            pass
+        if int((H2I(updatedAt()) - datetime.now()).total_seconds()) > RECORDS_THROTTLE:
+            try:
+                oldRecords = await savedRecentWRs()
+                print("checking records")
+                newRecords = await apiRecentWRs()
+                RunIds = []
+                for element in oldRecords:
+                    RunIds.append(element["RunId"])
+                for record in newRecords:
+                    if record['RunId'] not in RunIds:
+                        # if record["Tie"] == False:
+                        #         print("announcing!")
+                        #         await announce(record)
+                        print("announcing!")
+                        await announce(record)
+            except:
+                logEvent("Problem in lookForRecord")
+        else:
+            print("Throttled record poll")
 
 async def announce(record):
     ### Announces a new record, according to the announcement string:
@@ -231,8 +242,8 @@ def formatWRAnn(record):
         # Formatting string segments - doing it here so i can pick and choose later
         previousString = f"Previous Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}"
         beatenBy = f"Beaten by {timeDiff}"
-        standingFor = f"Standing for {prevTimeStanding},\nt was the {oldestRank} oldest record"
-        prevComp = f"\n{previousString}\n{beatenBy}\n{standingFor}"
+        standingFor = f"Standing for {prevTimeStanding},\nIt was the {oldestRank} oldest record"
+        prevComp = f"\n\n{previousString}\n{beatenBy}\n{standingFor}"
 
     # if no previous record:
     run = f"[{game} {diff} - {level} {genre}]({levelUrl}) | [{runTime}]({vidUrl})"
@@ -260,56 +271,64 @@ async def maintainTwitchNotifs():
 
     while True:
         await asyncio.sleep(10) # Timer to loop, better way but haven't gotten around to changing it
-        print("Looking for streams to post") # CONSOLE OUT
-        apiData = getJSON(STREAMS_ENDPOINT)
-        responses = []
-        messageData = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
-        topMessage = messageData[0]
-        messageData = messageData[1:]
-        urlList = []
-        for message in messageData:
-            messageUrl = messageToUrl(message)
-            urlList.append(messageUrl)
+        #todo: slow down traffic using lastUpdated - 1 minute intervals at least
+        if int((H2I(updatedAt()) - datetime.now()).total_seconds()) > RECORDS_THROTTLE:
+            print("Looking for streams to post")
+            apiData = getJSON(STREAMS_ENDPOINT)
+            responses = []
+            messageData = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
+            topMessage = messageData[0]
+            messageData = messageData[1:]
+            urlList = []
+            for message in messageData:
+                messageUrl = messageToUrl(message)
+                urlList.append(messageUrl)
 
-        # Purge posted streams
-        for url in urlList:
-            if url not in apiList:
-                for messageObject in messageData:
-                    if messageToUrl(messageObject) == url:
-                        print(f"Attempting to remove {url}")
-                        await messageObject.delete()
-
-        # For editing the Notice Text
-        if len(apiData["Entries"]) == 0:
-            if NOTICE_TEXT == "":
-                await topMessage.edit(content=NO_STREAMS_TEXT)
-        else:
+            # Purge posted streams
             apiList = []
             for entry in apiData["Entries"]:
                 apiList.append(entry["StreamUrl"].lower().rstrip())
-            postedStreamList = await getPostedStreams() # Get newest channel feed
-            for stream in apiData["Entries"]:
-                if stream["StreamUrl"].lower() not in postedStreamList:
-                    print(f"{stream['StreamUrl'].lower()} not in: {postedStreamList}")
-                    ### TODO: get twitch user color and set in embed
-                    title = stream["Title"]
-                    game = stream["GameName"]
-                    embed = discord.Embed(title=f"Streaming {game}", description=f'\"{title}\"', color=0x080808)
-                    embed.set_author(name=f"{stream['Username']}", url=f"https://haloruns.com/profiles/{stream['Username'].lower()}")
-                    ### TODO: Get Game Name from site when we get functionality to detect game.
-                    embed.add_field(name="\u200b", value=f"[Watch Here]({stream['StreamUrl'].lower()})", inline=True)
-                    embed.set_footer(text=f"{stream['Viewers']} Viewers | {stream['StreamUrl'].lower()}")
-                    ### Not sure if we want viewer count, but its here if we do.
-                    embed.set_thumbnail(url=f"{stream['ProfileImageUrl']}")
-                    responses.append(embed)
-            streamsChannel = mb.get_channel(NOTIFS_CHANNEL_ID)
-            if responses != []:
-                for response in responses:
-                    await streamsChannel.send(embed=response)
-        postedStreamList = await getPostedStreams() # Get updated channel feed
-        if len(postedStreamList) > 0:
-            if NOTICE_TEXT == "":
-                await topMessage.edit(content=SOME_STREAMS_TEXT)
+            for url in urlList:
+                if url not in apiList:
+                    for messageObject in messageData:
+                        if messageToUrl(messageObject) == url:
+                            print(f"Attempting to remove {url}")
+                            await messageObject.delete()
+
+            # For editing the Notice Text
+            if len(apiData["Entries"]) == 0:
+                if NOTICE_TEXT == "":
+                    await topMessage.edit(content=NO_STREAMS_TEXT)
+            else:
+                apiList = []
+                for entry in apiData["Entries"]:
+                    apiList.append(entry["StreamUrl"].lower().rstrip())
+                postedStreamList = await getPostedStreams() # Get newest channel feed
+                for stream in apiData["Entries"]:
+                    if stream["StreamUrl"].lower() not in postedStreamList:
+                        print(f"{stream['StreamUrl'].lower()} not in: {postedStreamList}")
+                        ### TODO: get twitch user color and set in embed
+                        title = stream["Title"]
+                        game = stream["GameName"]
+                        embed = discord.Embed(title=f"Streaming {game}", description=f'\"{title}\"', color=0x009e00)
+                        embed.set_author(name=f"{stream['Username']}", url=f"https://haloruns.com/profiles/{stream['Username'].lower()}")
+                        ### TODO: Get Game Name from site when we get functionality to detect game.
+                        embed.add_field(name="\u200b", value=f"[Watch Here]({stream['StreamUrl'].lower()})", inline=True)
+                        embed.set_footer(text=f"{stream['Viewers']} Viewers | {stream['StreamUrl'].lower()}")
+                        ### Not sure if we want viewer count, but its here if we do.
+                        embed.set_thumbnail(url=f"{stream['ProfileImageUrl']}")
+                        responses.append(embed)
+                streamsChannel = mb.get_channel(NOTIFS_CHANNEL_ID)
+                if responses != []:
+                    for response in responses:
+                        await streamsChannel.send(embed=response)
+            postedStreamList = await getPostedStreams() # Get updated channel feed
+            if len(postedStreamList) > 0:
+                if NOTICE_TEXT == "":
+                    await topMessage.edit(content=SOME_STREAMS_TEXT)
+        else:
+            logEvent("Throttled streams poll")
+            print("Throttled streams poll")
 
 ### Utility Functions ###
 
@@ -516,6 +535,11 @@ def parseIcon(record):
         return "<:haloruns:230158630593232897>"
     else:
         return icons[record["GameName"]]
+
+def logEvent(event):
+    file = open("log.txt", "a")
+    file.write(f"{strftime('%a, %d %b %Y %H:%M:%S +0000', gmtime())} || {event}")
+    file.close()
 
 mb.loop.create_task(lookForRecord())
 mb.loop.create_task(maintainTwitchNotifs())
