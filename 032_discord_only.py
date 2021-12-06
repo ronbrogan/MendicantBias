@@ -179,7 +179,7 @@ async def lookForRecord():
 
     while True:
         await asyncio.sleep(20) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
-        if int( datetime.now(timezone.utc) - ( H2I(updatedAt()) ).total_seconds() ) > RECORDS_THROTTLE:
+        if int( datetime.now(timezone.utc) - H2I(updatedAt()) .total_seconds() ) > RECORDS_THROTTLE:
             try:
                 oldRecords = await savedRecentWRs()
                 print("checking records")
@@ -271,7 +271,8 @@ async def maintainTwitchNotifs():
     while True:
         await asyncio.sleep(10) # Timer to loop, better way but haven't gotten around to changing it
         #todo: slow down traffic using lastUpdated - 1 minute intervals at least
-        if int( datetime.now(timezone.utc) - ( H2I(updatedAt()) ).total_seconds() ) > STREAMS_THROTTLE:
+        #                                      datetime.datetime
+        if int( datetime.now(timezone.utc) - H2I(updatedAt()) .total_seconds() ) > STREAMS_THROTTLE:
             print("Looking for streams to post")
             apiData = getJSON(STREAMS_ENDPOINT)
             responses = []
