@@ -290,7 +290,7 @@ async def maintainTwitchNotifs():
         #                                      datetime.datetime
         diff = int( (datetime.now(timezone.utc) - H2I(updatedAt()) ).total_seconds())
         if diff > STREAMS_THROTTLE:
-            print("diff too high, calling records")
+            print("diff too high, calling streams")
             print("Looking for streams to post")
             apiData = getJSON(STREAMS_ENDPOINT)
 
