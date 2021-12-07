@@ -198,14 +198,11 @@ async def lookForRecord():
                 oldRecords = await savedRecentWRs()
                 print("checking records")
                 newRecords = await apiRecentWRs()
-                print(list(map(lambda x: x["RunId"], newRecords)))
                 RunIds = list(map(lambda x: x["RunId"], oldRecords))
-                print(RunIds)
                 #for element in oldRecords:
                     #print(f'\nLine 203 | for record in oldRecords: \n{element["RunId"]}\n')
                     #RunIds.append(element["RunId"])
                 for record in newRecords:
-                    print(f'\nLine 207 | for record in newRecords: \n{record["RunId"]}\n')
                     if record['RunId'] not in RunIds:
                         # if record["Tie"] == False:
                         #         print("announcing!")
