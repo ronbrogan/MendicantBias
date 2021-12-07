@@ -198,15 +198,19 @@ async def lookForRecord():
                 oldRecords = await savedRecentWRs()
                 print("checking records")
                 newRecords = await apiRecentWRs()
-                RunIds = []
-                for element in oldRecords:
-                    RunIds.append(element["RunId"])
+                print(list(map(lambda x: x["RunId"], newRecords)))
+                RunIds = list(map(lambda x: x["RunId"], oldRecords))
+                print(RunIds)
+                #for element in oldRecords:
+                    #print(f'\nLine 203 | for record in oldRecords: \n{element["RunId"]}\n')
+                    #RunIds.append(element["RunId"])
                 for record in newRecords:
+                    print(f'\nLine 207 | for record in newRecords: \n{record["RunId"]}\n')
                     if record['RunId'] not in RunIds:
                         # if record["Tie"] == False:
                         #         print("announcing!")
                         #         await announce(record)
-                        print("announcing!")
+                        print(f'announcing {record["RunId"]} !')
                         await announce(record)
             except:
                 logEvent("Problem in lookForRecord")
@@ -220,12 +224,12 @@ async def announce(record):
 
     recordsChannel = mb.get_channel(RECORDS_CHANNEL_ID)
     announcement = formatWRAnn(record)
-    print(announcement)
     if record["Tie"] == False:
         embeddedAnnouncement = discord.Embed(description=announcement[0], color=announcement[1]["embedColor"])
         await recordsChannel.send(embed=embeddedAnnouncement)
 
 def formatWRAnn(record):
+    notNew = False
     embedConfig = {
         "embedColor":0xff0000
     }
@@ -270,10 +274,9 @@ def formatWRAnn(record):
             run = f"[{diff} {genre}]({levelUrl}) | [{runTime}]({vidUrl})"
 
     # Final compositions
-    announcement = f"{title}\n{run}\n{setBy}"    
+    announcement = f"{title}\n{run}\n{setBy}"
     if notNew:
         announcement += prevComp
-    print(announcement)
     return (announcement, embedConfig)
 
 def saveStreamList(apiData):
