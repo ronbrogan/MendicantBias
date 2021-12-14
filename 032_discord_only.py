@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, tzinfo, timezone
 import math
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+import re
 
 print(f"Version 2021.11.22\nDiscord Version: {discord.__version__}\nCredit Wackee\nBackflip\nScales\nXero\nNervy")
 mb = Bot(command_prefix='!') # Creates the main bot object - asynchronous
@@ -235,8 +236,8 @@ def formatWRAnn(record):
     diff = record["Difficulty"]
     level = record["LevelName"]
     genre = parseGenre(record) # includes coop/solo, bit of a hack to get extras going
-    extra = record["IsExtension"] # awaiting 
-    levelUrl = record["LeaderboardUrl"]
+    extra = record["IsExtension"] # awaiting
+    levelUrl = removeSpaces(record["LeaderboardUrl"])
     runTime = strip_hour(record["Duration"])
     vidUrl = record["Participants"][0]["EvidenceLink"]
     parsedPlayers = parsePlayers(record)
@@ -356,6 +357,9 @@ async def maintainTwitchNotifs():
             print(f"Throttled streams poll")
 
 ### Utility Functions ###
+
+def removeSpaces(url):
+    return url.replace(" ", "")
 
 def messageToUrl(message):
     ### Return Url contained in a live-stream embed message

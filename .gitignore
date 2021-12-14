@@ -9,3 +9,4 @@ config.json
 /streamsExampleNew.json
 /streamsExampleOld.json
 **/__pycache__/*
+modIds.json
