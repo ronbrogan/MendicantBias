@@ -10,3 +10,5 @@ config.json
 /streamsExampleOld.json
 **/__pycache__/*
 modIds.json
+/Backup/
+
