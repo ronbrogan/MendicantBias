@@ -1,4 +1,6 @@
 from xml.etree import ElementTree
+import logging
+from datetime import datetime
 
 # Config
 class Config:
@@ -8,6 +10,9 @@ class Config:
         self.config_file = None
         self.xml_tree = None
         self.xml_root = None
+
+        # log level
+        self.log_level = None
 
         # paramters parsed from configuration
         self.streams_source = None
@@ -57,8 +62,20 @@ class Config:
         # nohr is a comma-separated list
         self.nohr = self.parse_from_subtree(self.xml_root, "NoHr").text.strip().split(",")
 
+        self.parse_log_level(self.xml_root)
         self.parse_commands(self.xml_root)
     # end parse
+
+    # setup_logger
+    def setup_logger(self):
+        now = datetime.now()
+        s = now.strftime("%m%d%Y_%H%M%S")
+        log_file = "log_%s.txt" % s
+
+        logging.basicConfig(
+            format="%(levelname)s :: %(asctime)s :: %(message)s",
+            filename=log_file,
+            level=self.log_level)
 
     # parse_from_subtree
     def parse_from_subtree(self, subtree, elem):
@@ -70,6 +87,22 @@ class Config:
 
         return ret
     # end parse_from_subtree
+
+    # parse_log_level
+    def parse_log_level(self, subtree):
+        log_level_text = self.parse_from_subtree(self.xml_root, "LogLevel").text.strip()
+        if(log_level_text == "debug"):
+            self.log_level = logging.DEBUG
+        elif(log_level_text == "info"):
+            self.log_level = logging.INFO
+        elif(log_level_text == "warn"):
+            self.log_level = logging.WARNING
+        elif(log_level_text == "error"):
+            self.log_level = logging.ERROR
+        elif(log_level_text == "critical"):
+            self.log_level = logging.CRITICAL
+        else:
+            raise ValueError("Unrecognized log level:", log_level_text)
 
     # parses list of commands
     def parse_commands(self, subtree):

@@ -1,4 +1,5 @@
 import argparse
+import logging
 
 from ConfigParser import Config
 from CommandExec import CommandExec
@@ -20,6 +21,13 @@ def main():
     args = parse_args()
 
     CONFIG.parse(args.config)
+    CONFIG.setup_logger()
+
+    logging.debug("This is a debug")
+    logging.info("This is an info")
+    logging.warning("This is a warning")
+    logging.error("This is an error")
+    logging.critical("This is a critical")
 
     print("Testing ground for command (type 'exit' to exit)")
     while True:

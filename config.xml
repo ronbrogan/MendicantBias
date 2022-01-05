@@ -7,6 +7,11 @@
       &lt; = <
    -->
 
+   <!-- Log level in order: debug, info, warn, error, critical
+      Previous levels include later levels (i.e. info level includes info, warn, error, and critical but not debug)
+   -->
+   <LogLevel>info</LogLevel>
+
    <!-- Sources (from the haloruns website) -->
    <StreamsSource>https://haloruns.com/content/feeds/streamList.json</StreamsSource>
    <RecordsSource>https://haloruns.com/content/feeds/latestRecords.json</RecordsSource>
