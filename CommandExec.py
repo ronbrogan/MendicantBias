@@ -15,20 +15,22 @@ class CommandExec:
             print(config.embed_commands[comm])
         # Function command
         elif(comm in config.func_commands.keys()):
-            self.function_exec(config.func_commands[comm], args)
+            self.function_exec(config, config.func_commands[comm], args)
         # Unrecognized command
         else:
             print("Command not recognized!")
     # end exec
 
     # function_exec
-    def function_exec(self, exec_func, args):
+    def function_exec(self, config, exec_func, args):
         print("EXECUTING FUNCTION: %s WITH ARGS: %s" % (exec_func, args))
 
         if(exec_func == "calc"):
             self.command_calc(args)
         elif(exec_func == "points"):
             self.command_points(args)
+        elif(exec_func == "nohr"):
+            self.command_nohr(config)
         else:
             print("UNRECOGNIZED EXECUTION FUNCTION:", exec_func)
     # end function_exec
@@ -110,6 +112,15 @@ class CommandExec:
             print(pointsStr)
     # end command_points
 
+    # command_nohr
+    def command_nohr(self, config):
+        msg = \
+            "Add one of these tags to your stream title to be hidden from the stream list," \
+            " when you don't want to be listed, or are doing something non-speedrun related:\n%s" \
+            % " ".join(config.nohr)
+
+        print(msg)
+
     # HELPER FOR command_points
     # pad_time
     def pad_time(self, s):
@@ -127,7 +138,6 @@ class CommandExec:
     # get_time_format
     def get_time_format(self, s):
         ### Formats a time string for strptime
-
         count = s.count(':')
         if count == 0:
             return "%S"

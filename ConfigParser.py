@@ -19,6 +19,14 @@ class Config:
         self.records_channel = None
         self.test_channel = None
 
+        # default streams channel text
+        self.info_text = None
+        self.no_streams_text = None
+        self.currently_live_text = None
+
+        # List of nohr terms
+        self.nohr = None
+
         # dictionary of commands
         # Text commands write simple text
         # Embed commands embed the given text (discord embedding)
@@ -41,6 +49,13 @@ class Config:
         self.notifs_channel = self.parse_from_subtree(self.xml_root, "NotifsChannelId").text.strip()
         self.records_channel = self.parse_from_subtree(self.xml_root, "RecordsChannelId").text.strip()
         self.test_channel = self.parse_from_subtree(self.xml_root, "TestChannelId").text.strip()
+
+        self.info_text = self.parse_from_subtree(self.xml_root, "InfoText").text.strip()
+        self.no_streams_text = self.parse_from_subtree(self.xml_root, "NoStreamsText").text.strip()
+        self.currently_live_text = self.parse_from_subtree(self.xml_root, "CurrentlyLiveText").text.strip()
+
+        # nohr is a comma-separated list
+        self.nohr = self.parse_from_subtree(self.xml_root, "NoHr").text.strip().split(",")
 
         self.parse_commands(self.xml_root)
     # end parse

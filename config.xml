@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <MendicantConfig>
 
+   <!--
+      &#xA; = newline
+      &gt; = >
+      &lt; = <
+   -->
+
    <!-- Sources (from the haloruns website) -->
    <StreamsSource>https://haloruns.com/content/feeds/streamList.json</StreamsSource>
    <RecordsSource>https://haloruns.com/content/feeds/latestRecords.json</RecordsSource>
@@ -11,6 +17,14 @@
    <RecordsChannelId>600075722232692746</RecordsChannelId>
    <TestChannelId>818617029011177492</TestChannelId> <!-- Wackee's test channel -->
 
+   <!-- Default streams channel text -->
+   <InfoText> To appear on the HaloRuns stream tracker, link your Twitch account at https://haloruns.com/ &#xA;For a list of terms that will automatically hide your stream from being shown here (if you are not speedrunning or would prefer to have your stream hidden) you can use the .nohr command anywhere in the server, or DM me directly!&#xA;You can now also toggle your stream visibility from your HaloRuns Profile!</InfoText>
+   <NoStreamsText>Nobody is currently streaming&lt;:NotLikeThis:257718094049443850&gt;</NoStreamsText>
+   <CurrentlyLiveText>CURRENTLY LIVE:&#xA;- - - - - - - - - - - - -</CurrentlyLiveText>
+
+   <!-- List of nohr terms to hide a channel from live-streams (comma separated list) -->
+   <NoHr>[nosrl],[nosrg],[nohr],[no hr],mlg,custom,matchmaking,multiplayer,spartan ops,forge,mm,mp,1v1,2v2,3v3,4v4,5v5,6v6,7v7,8v8,warzone,multi,swat,snipers,doubles,slayer,firefight,challenges,achievements</NoHr>
+
    <!-- List of commands that the bot will respond to -->
    <!-- NOTE: Commands are case insensitive -->
    <Commands>
@@ -20,6 +34,10 @@
 
       <command id=".calc">
          <exec>calc</exec>
+      </command>
+
+      <command id=".nohr">
+         <exec>nohr</exec>
       </command>
 
       <command id=".rules">
