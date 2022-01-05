@@ -22,12 +22,7 @@ def main():
 
     CONFIG.parse(args.config)
     CONFIG.setup_logger()
-
-    logging.debug("This is a debug")
-    logging.info("This is an info")
-    logging.warning("This is a warning")
-    logging.error("This is an error")
-    logging.critical("This is a critical")
+    CONFIG.log_config()
 
     print("Testing ground for command (type 'exit' to exit)")
     while True:

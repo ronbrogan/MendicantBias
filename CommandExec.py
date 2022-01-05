@@ -1,5 +1,6 @@
 import math
 import traceback
+import logging
 from datetime import datetime
 
 # CommandExec
@@ -23,7 +24,7 @@ class CommandExec:
 
     # function_exec
     def function_exec(self, config, exec_func, args):
-        print("EXECUTING FUNCTION: %s WITH ARGS: %s" % (exec_func, args))
+        logging.debug("EXECUTING FUNCTION: %s WITH ARGS: %s" % (exec_func, args))
 
         if(exec_func == "calc"):
             self.command_calc(args)
@@ -104,7 +105,7 @@ class CommandExec:
         except Exception:
             print("EXCEPTION")
             print("===============================")
-            traceback.print_exc()
+            print(traceback.format_exc(), end="")
             print("===============================")
             print("")
             pointsStr = "One of your times is probably not formatted correctly."
