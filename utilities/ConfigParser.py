@@ -87,7 +87,7 @@ class Config:
                 "Token file must contain a single line containing the token: %s", token_file)
 
         self.token_file = token_file
-        self.token = lines[0]
+        self.token = lines[0].strip()
 
     # setup_logger
     def setup_logger(self):
