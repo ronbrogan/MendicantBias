@@ -2,6 +2,7 @@ import argparse
 
 from utilities.ConfigParser import Config
 from utilities.CommandExec import CommandExec
+from utilities.logs import setup_logging, create_log
 
 # Create global instances
 CONFIG = Config()
@@ -22,9 +23,10 @@ def main():
 
     CONFIG.parse_config(args.config)
     CONFIG.parse_token(args.token)
-    CONFIG.setup_logging()
 
-    main_logger = CONFIG.create_log("main")
+    setup_logging(CONFIG.log_level)
+    main_logger = create_log("main")
+
     CONFIG.log_config(main_logger)
 
     print("Testing ground for command (type 'exit' to exit)")

@@ -1,11 +1,7 @@
-from xml.etree import ElementTree
 import logging
-from datetime import datetime
-import os
+from xml.etree import ElementTree
 
-from .file_utils import throw_if_file_unreadable
-
-LOG_FORMATTER = logging.Formatter("%(asctime)s  %(levelname)s  %(message)s")
+from .files import throw_if_file_unreadable
 
 # Config
 class Config:
@@ -92,29 +88,6 @@ class Config:
 
         self.token_file = token_file
         self.token = lines[0].strip()
-
-    # setup_logging
-    # creates and manages time-stamped directory where all log files are written
-    # should only be called once
-    def setup_logging(self):
-        cur_datetime = datetime.now().strftime("%m%d%Y_%H%M%S")
-        self.log_dir = "logs_%s" % cur_datetime
-
-        os.mkdir(self.log_dir)
-
-    # create_log
-    # Creates a new log file with the given name. Returns logging object that will log to this file
-    def create_log(self, log_name):
-        full_log_path = os.path.join(self.log_dir, "%s.log" % log_name)
-
-        handler = logging.FileHandler(full_log_path)
-        handler.setFormatter(LOG_FORMATTER)
-
-        logger = logging.getLogger(log_name)
-        logger.setLevel(self.log_level)
-        logger.addHandler(handler)
-
-        return logger
 
     # log_config
     def log_config(self, logger):
