@@ -1,12 +1,11 @@
 import math
 import traceback
-import logging
 from datetime import datetime
 
 # CommandExec
 class CommandExec:
     # exec
-    def exec(self, config, comm, args):
+    def exec(self, config, logger, comm, args):
         # Text command
         if(comm in config.text_commands.keys()):
             print(config.text_commands[comm])
@@ -16,15 +15,15 @@ class CommandExec:
             print(config.embed_commands[comm])
         # Function command
         elif(comm in config.func_commands.keys()):
-            self.function_exec(config, config.func_commands[comm], args)
+            self.function_exec(config, logger, config.func_commands[comm], args)
         # Unrecognized command
         else:
             print("Command not recognized!")
     # end exec
 
     # function_exec
-    def function_exec(self, config, exec_func, args):
-        logging.debug("EXECUTING FUNCTION: %s WITH ARGS: %s" % (exec_func, args))
+    def function_exec(self, config, logger, exec_func, args):
+        logger.debug("EXECUTING FUNCTION: %s WITH ARGS: %s" % (exec_func, args))
 
         if(exec_func == "calc"):
             self.command_calc(args)

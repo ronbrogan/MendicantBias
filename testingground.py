@@ -1,5 +1,4 @@
 import argparse
-import logging
 
 from utilities.ConfigParser import Config
 from utilities.CommandExec import CommandExec
@@ -23,8 +22,10 @@ def main():
 
     CONFIG.parse_config(args.config)
     CONFIG.parse_token(args.token)
-    CONFIG.setup_logger()
-    CONFIG.log_config()
+    CONFIG.setup_logging()
+
+    main_logger = CONFIG.create_log("main")
+    CONFIG.log_config(main_logger)
 
     print("Testing ground for command (type 'exit' to exit)")
     while True:
@@ -40,7 +41,7 @@ def main():
         command = full_command_split[0]
         args = full_command_split[1:]
 
-        COMMAND_EXEC.exec(CONFIG, command, args)
+        COMMAND_EXEC.exec(CONFIG, main_logger, command, args)
 
     return
 
