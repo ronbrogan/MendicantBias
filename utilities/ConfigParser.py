@@ -2,6 +2,8 @@ from xml.etree import ElementTree
 import logging
 from datetime import datetime
 
+from .file_utils import throw_if_file_unreadable
+
 # Config
 class Config:
     # __init__
@@ -10,6 +12,10 @@ class Config:
         self.config_file = None
         self.xml_tree = None
         self.xml_root = None
+
+        # Token file and parsed token
+        self.token_file = None
+        self.token = None
 
         # log level
         self.log_level = None
@@ -41,8 +47,10 @@ class Config:
         self.func_commands = dict()
     # end __init__
 
-    # parse
-    def parse(self, config_file):
+    # parse_config
+    def parse_config(self, config_file):
+        throw_if_file_unreadable(config_file)
+
         self.config_file = config_file
         self.xml_tree = ElementTree.parse(config_file)
         self.xml_root = self.xml_tree.getroot()
@@ -66,6 +74,21 @@ class Config:
         self.parse_commands(self.xml_root)
     # end parse
 
+    # parse_token
+    def parse_token(self, token_file):
+        throw_if_file_unreadable(token_file)
+
+        with open(token_file, "r") as i_stream:
+            lines = i_stream.readlines()
+
+        # Check for error
+        if(len(lines) != 1):
+            raise ValueError( \
+                "Token file must contain a single line containing the token: %s", token_file)
+
+        self.token_file = token_file
+        self.token = lines[0]
+
     # setup_logger
     def setup_logger(self):
         now = datetime.now()
@@ -79,8 +102,10 @@ class Config:
 
     # log_config
     def log_config(self):
+        # NOTE: For security reasons, we will not log the auth token
         logging.info("=============== CONFIG ===============")
         logging.info("Config file: %s" % self.config_file)
+        logging.info("Token file: %s" % self.token_file)
         logging.info("streams_source: %s" % self.streams_source)
         logging.info("records_source: %s" % self.records_source)
         logging.info("oldest_source: %s" % self.oldest_source)

@@ -13,6 +13,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-config", type=str, default="./config.xml", help="Path to the configuration xml")
+    parser.add_argument("-token", type=str, default="./TOKEN.txt", help="Discord verification token")
 
     return parser.parse_args()
 
@@ -20,7 +21,8 @@ def parse_args():
 def main():
     args = parse_args()
 
-    CONFIG.parse(args.config)
+    CONFIG.parse_config(args.config)
+    CONFIG.parse_token(args.token)
     CONFIG.setup_logger()
     CONFIG.log_config()
 
