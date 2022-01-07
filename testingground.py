@@ -1,8 +1,8 @@
 import argparse
 import logging
 
-from ConfigParser import Config
-from CommandExec import CommandExec
+from utilities.ConfigParser import Config
+from utilities.CommandExec import CommandExec
 
 # Create global instances
 CONFIG = Config()

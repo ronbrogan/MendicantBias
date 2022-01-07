@@ -73,7 +73,7 @@ class Config:
         log_file = "log_%s.txt" % s
 
         logging.basicConfig(
-            format="%(levelname)s :: %(asctime)s :: %(message)s",
+            format="%(asctime)s  %(levelname)s  %(message)s",
             filename=log_file,
             level=self.log_level)
 
@@ -87,9 +87,6 @@ class Config:
         logging.info("notifs_channel: %s" % self.notifs_channel)
         logging.info("records_channel: %s" % self.records_channel)
         logging.info("test_channel: %s" % self.test_channel)
-        logging.info("info_text: %s" % self.info_text)
-        logging.info("no_streams_text: %s" % self.no_streams_text)
-        logging.info("currently_live_text: %s" % self.currently_live_text)
         logging.info("nohr: %s" % self.nohr)
         logging.info("=============== END CONFIG ===============\n")
 
