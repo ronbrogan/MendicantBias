@@ -12,10 +12,23 @@ import math
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 import re
+from azure.storage.queue import QueueServiceClient
+import base64
+import humanize
+import traceback
 
-print(f"Version 2021.11.22\nDiscord Version: {discord.__version__}\nCredit Wackee\nBackflip\nScales\nXero\nNervy")
+print(f"Version 2022.02.01\nDiscord Version: {discord.__version__}\nCredit Wackee\nBackflip\nScales\nXero\nNervy")
 mb = Bot(command_prefix='!') # Creates the main bot object - asynchronous
-TOKEN = open("TOKEN.txt", "r").readline() # reads the token used by the bot from the local directory
+secrets = open("TOKEN.txt", "r")
+TOKEN = secrets.readline() # reads the token used by the bot from the local directory
+QUEUE_AUTH = secrets.readline()
+
+record_queue = None
+try:
+    queue_service = QueueServiceClient.from_connection_string(conn_str=QUEUE_AUTH)
+    record_queue = queue_service.get_queue_client("records-discord")
+except:
+    print("unable to connect to record queue, polling queue will be skipped")
 
 STREAMS_ENDPOINT = "https://haloruns.com/content/feeds/streamList.json"
 RECORDS_ENDPOINT = "https://haloruns.com/content/feeds/latestRecords.json"
@@ -138,10 +151,13 @@ def getJSON(url):
     exit()
 
 def updatedAt(data):
-    if data == "streams":
-        return json.load(open("streams.json", "r"))["UpdatedAt"]
-    if data == "records":
-        return json.load(open("records.json", "r"))["UpdatedAt"]
+    try:
+        if data == "streams":
+            return H2I(json.load(open("streams.json", "r"))["UpdatedAt"])
+        if data == "records":
+            return H2I(json.load(open("records.json", "r"))["UpdatedAt"])
+    except:
+        return datetime(2000, 1, 1).astimezone(timezone.utc)
 
 async def apiRecentWRs():
     ### Returns the most recent records list, and replaces the locally stored records list with a new one.
@@ -186,13 +202,29 @@ async def getPostedStreams():
         await topMessage.edit(content=NOTICE_TEXT)
     return postedStreamList
 
+async def pollQueueForRecords():
+    while record_queue != None:
+        await asyncio.sleep(10)
+        msg = record_queue.receive_message(timeout = 1)
+        if msg != None:
+            try:
+                msgtext = base64.b64decode(msg.content)
+                record = json.loads(msgtext.decode('utf-8'))
+                print(f'announcing {record["RunId"]} !')
+                await announce(record)
+                record_queue.delete_message(msg)
+            except Exception  as e: 
+                print("failure during record poll")
+                print(e)
+                traceback.print_exc()
+
 async def lookForRecord():
     ### Upon a new record being added to the HR database, this catches it by checking the API against the locally stored records
     ### It then calls the announce() function to push it to the Discord channel
 
     while True:
         await asyncio.sleep(20) # Sleeps first, to avoid trying to perform an action before the bot is ready - there's certainly a better way to do this async stuff
-        diff = int( (datetime.now(timezone.utc) - H2I(updatedAt("records")) ).total_seconds())
+        diff = int( (datetime.now(timezone.utc) - updatedAt("records") ).total_seconds())
         if diff > STREAMS_THROTTLE:
             print("diff too high, calling records")
             try:
@@ -212,8 +244,7 @@ async def lookForRecord():
                         await announce(record)
             except:
                 logEvent("Problem in lookForRecord")
-        else:
-            print("Throttled record poll")
+
 
 async def announce(record):
     ### Announces a new record, according to the announcement string:
@@ -238,7 +269,8 @@ def formatWRAnn(record):
     genre = parseGenre(record) # includes coop/solo, bit of a hack to get extras going
     extra = record["IsExtension"] # awaiting
     levelUrl = removeSpaces(record["LeaderboardUrl"])
-    runTime = strip_hour(record["Duration"])
+    runTimeDelta = duration_delta(record["Duration"])
+    runTime = format_duration(runTimeDelta)
     vidUrl = record["Participants"][0]["EvidenceLink"]
     parsedPlayers = parsePlayers(record)
     players = parsedPlayers[0]
@@ -248,11 +280,12 @@ def formatWRAnn(record):
     # if previous record exists:
     if record["PreviousRecordId"] != "00000000-0000-0000-0000-000000000000":
         notNew = True
-        prevRunTime = strip_hour(record["PreviousRecordDuration"])
+        prevRunTimeDelta = duration_delta(record["PreviousRecordDuration"])
+        prevRunTime = format_duration(prevRunTimeDelta)
         prevVidUrl = record["PreviousRecordParticipants"][0]["EvidenceLink"]
         prevPlayers = parsedPlayers[1]
-        timeDiff = str(convertTimes(getSecondsDiff(record["PreviousRecordDuration"], record["Duration"])))
-        prevTimeStanding = getTimeStood(int((H2I(record["OccuredAt"]) - H2I(record["PreviousRecordOccuredAt"])).total_seconds()))
+        timeDiff = format_duration(prevRunTimeDelta - runTimeDelta)
+        prevTimeStanding = humanize.precisedelta(H2I(record["OccuredAt"]) - H2I(record["PreviousRecordOccuredAt"]), format="%.0f")
         oldestRank = ordinalize(findOldestRank(record))
         # Formatting string segments - doing it here so i can pick and choose later
         previousString = f"Previous Record:\n[{prevRunTime}]({prevVidUrl}) by {prevPlayers}"
@@ -293,7 +326,7 @@ async def maintainTwitchNotifs():
         await asyncio.sleep(10) # Timer to loop, better way but haven't gotten around to changing it
         #todo: slow down traffic using lastUpdated - 1 minute intervals at least
         #                                      datetime.datetime
-        diff = int( (datetime.now(timezone.utc) - H2I(updatedAt("streams")) ).total_seconds())
+        diff = int( (datetime.now(timezone.utc) - updatedAt("streams") ).total_seconds())
         if diff > STREAMS_THROTTLE:
             print("diff too high, calling streams")
             print("Looking for streams to post")
@@ -301,57 +334,61 @@ async def maintainTwitchNotifs():
 
             saveStreamList(apiData)
 
-            responses = []
-            messageData = await mb.get_channel(NOTIFS_CHANNEL_ID).history(oldest_first=True).flatten()
-            topMessage = messageData[0]
-            messageData = messageData[1:]
+            notif_channel = mb.get_channel(NOTIFS_CHANNEL_ID)
+            allMessages = await notif_channel.history(oldest_first=True).flatten()
+            topMessage = allMessages[0]
+            streamMessages = allMessages[1:]
             urlList = []
-            for message in messageData:
-                messageUrl = messageToUrl(message)
-                urlList.append(messageUrl)
+            for message in streamMessages:
+                urlList.append(messageToUrl(message))
+
+            currentStreams = len(streamMessages)
 
             # Purge posted streams
             apiList = []
             for entry in apiData["Entries"]:
                 apiList.append(entry["StreamUrl"].lower().rstrip())
+
             for url in urlList:
                 if url not in apiList:
-                    for messageObject in messageData:
+                    for messageObject in streamMessages:
                         if messageToUrl(messageObject) == url:
                             print(f"Attempting to remove {url}")
                             await messageObject.delete()
+                            currentStreams -= 1
 
             # For editing the Notice Text
-            if len(apiData["Entries"]) == 0:
-                if NOTICE_TEXT == "":
-                    await topMessage.edit(content=NO_STREAMS_TEXT)
+            if len(apiData["Entries"]) == 0 and NOTICE_TEXT == "":
+                await topMessage.edit(content=NO_STREAMS_TEXT)
             else:
-                apiList = []
-                for entry in apiData["Entries"]:
-                    apiList.append(entry["StreamUrl"].lower().rstrip())
-                postedStreamList = await getPostedStreams() # Get newest channel feed
                 for stream in apiData["Entries"]:
-                    if stream["StreamUrl"].lower() not in postedStreamList:
-                        print(f"{stream['StreamUrl'].lower()} not in: {postedStreamList}")
-                        ### TODO: get twitch user color and set in embed
-                        title = stream["Title"]
-                        game = stream["GameName"]
-                        embed = discord.Embed(title=f"Streaming {game}", description=f'\"{title}\"', color=0x009e00)
-                        embed.set_author(name=f"{stream['Username']}", url=f"https://haloruns.com/profiles/{stream['Username'].lower()}")
-                        ### TODO: Get Game Name from site when we get functionality to detect game.
-                        embed.add_field(name="\u200b", value=f"[Watch Here]({stream['StreamUrl'].lower()})", inline=True)
-                        embed.set_footer(text=f"{stream['Viewers']} Viewers | {stream['StreamUrl'].lower()}")
-                        ### Not sure if we want viewer count, but its here if we do.
-                        embed.set_thumbnail(url=f"{stream['ProfileImageUrl']}")
-                        responses.append(embed)
-                streamsChannel = mb.get_channel(NOTIFS_CHANNEL_ID)
-                if responses != []:
-                    for response in responses:
-                        await streamsChannel.send(embed=response)
-            postedStreamList = await getPostedStreams() # Get updated channel feed
-            if len(postedStreamList) > 0:
-                if NOTICE_TEXT == "":
-                    await topMessage.edit(content=SOME_STREAMS_TEXT)
+                    stream_url = stream["StreamUrl"].lower()
+                    existing_msg = next((x for x in streamMessages if messageToUrl(x) == stream_url), None)
+
+                    ### TODO: get twitch user color and set in embed
+                    title = re.sub(r"[\r\n\t]", "", stream["Title"])
+                    game = stream["GameName"]
+                    embed = discord.Embed(title=f"Streaming {game}", description=f'\"{title}\"', color=0x009e00)
+                    embed.set_author(name=f"{stream['Username']}", url=f"https://haloruns.com/profiles/{stream['Username']}")
+                    ### TODO: Get Game Name from site when we get functionality to detect game.
+                    embed.add_field(name="\u200b", value=f"[Watch Here]({stream['StreamUrl'].lower()})", inline=True)
+                    stream_duration_raw = timedelta(seconds=math.ceil((datetime.now(timezone.utc) - parser.parse(stream['StartedAt'])).total_seconds() / 60) * 60)
+                    stream_duration = humanize.precisedelta(stream_duration_raw, minimum_unit="minutes", format="%.0f")
+                    embed.set_footer(text=f"{stream['Viewers']} Viewers | Streaming for {stream_duration}")
+                    ### Not sure if we want viewer count, but its here if we do.
+                    embed.set_thumbnail(url=stream['ProfileImageUrl'])
+                    embed.set_image(url=f"https://static-cdn.jtvnw.net/previews-ttv/live_user_{stream['TwitchUsername'].lower()}-640x360.jpg?ts={int(time.time())}")
+
+                    if existing_msg == None:
+                        print(f"{stream_url} not in: {streamMessages}")
+                        await notif_channel.send(embed=embed)
+                        currentStreams += 1
+                    else:
+                        # update the embed
+                        await existing_msg.edit(embed=embed)
+
+            if currentStreams > 0 and NOTICE_TEXT == "":
+                await topMessage.edit(content=SOME_STREAMS_TEXT)
         else:
             #logEvent("Throttled streams poll")
             print(f"Throttled streams poll")
@@ -433,42 +470,21 @@ async def getPoints(pb, wr, points):
     finally:
         return(help_string + pointsStr)
 
-def convertTimes(seconds):
-    ### Converts seconds(int) to string
+def duration_delta(duration):
+    if(type(duration) is str): 
+        t = datetime.strptime(duration,"%H:%M:%S")
+        return timedelta(hours=t.hour, minutes=t.minute, seconds=t.second)
 
-    # Get hours, minutes, and seconds
-    minutes = seconds // 60
-    seconds = seconds % 60
+    return timedelta(seconds=duration)
 
-    hours = minutes // 60
-    minutes = minutes % 60
+def format_duration(timedelta):
+    hours, remainder = divmod(timedelta.total_seconds(), 3600)
+    minutes, seconds = divmod(remainder, 60)
 
-    # Will only print with hours included if hours > 0
-    if(hours > 0):
-        return '%d:%02d:%02d' % (hours, minutes, seconds)
-    else:
-        return '%d:%02d' % (minutes, seconds)
+    if(hours == 0):
+        return '{:01}:{:02}'.format(int(minutes), int(seconds))
 
-def strip_hour(x):
-    x_split = x.split(":")
-
-    # If we have a 0 in the hour part, we will remove the hour
-    if(int(x_split[0]) == 0):
-        x = ":".join(x_split[1:])
-
-    # if there is a leading 0 in minutes, remove that
-    if(x[0] == "0"):
-        x = x[1:]
-
-    return x
-
-def getSecondsDiff(time1, time2):
-    ### Returns the difference in seconds between two HMS time strings - maybe need to abs()?
-
-    oldRecord = datetime.strptime(time1, "%H:%M:%S")
-    newRecord = datetime.strptime(time2, "%H:%M:%S")
-    diff = int((oldRecord - newRecord).total_seconds())
-    return diff
+    return '{:01}:{:01}:{:02}'.format(int(hours), int(minutes), int(seconds))
 
 def parseGenre(record):
     ### Returns string for whether coop or not
@@ -505,23 +521,6 @@ def ordinalize(rank):
         return "1th"
     else:
         return str(rank) + suffix
-
-def getTimeStood(seconds):
-    ### Returns human-formatted string from duration, in seconds
-
-    if seconds == 0:
-        return "1 second"
-    else:
-        secs = seconds
-        days = secs//86400
-        hours = (secs - days*86400)//3600
-        minutes = (secs - days*86400 - hours*3600)//60
-        seconds = secs - days*86400 - hours*3600 - minutes*60
-        result = ("{0} day{1}, ".format(days, "s" if days!=1 else "") if days else "") + \
-        ("{0} hour{1}, ".format(hours, "s" if hours!=1 else "") if hours else "") + \
-        ("{0} minute{1}, ".format(minutes, "s" if minutes!=1 else "") if minutes else "") + \
-        ("{0} second{1}, ".format(seconds, "s" if seconds!=1 else "") if seconds else "")
-        return result.rstrip(", ")
 
 def buildPlayerMD(player):
     ### Returns the link to a haloruns user, from their username
@@ -570,6 +569,7 @@ def logEvent(event):
     file.write(f"{strftime('%a, %d %b %Y %H:%M:%S', gmtime())} || {event}\n")
     file.close()
 
+mb.loop.create_task(pollQueueForRecords())
 mb.loop.create_task(lookForRecord())
 mb.loop.create_task(maintainTwitchNotifs())
 mb.run(TOKEN)
