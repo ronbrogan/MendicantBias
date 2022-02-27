@@ -268,7 +268,7 @@ def formatWRAnn(record):
     level = record["LevelName"]
     genre = parseGenre(record) # includes coop/solo, bit of a hack to get extras going
     extra = record["IsExtension"] # awaiting
-    levelUrl = removeSpaces(record["LeaderboardUrl"])
+    levelUrl = f"https://haloruns.com/{removeSpaces(record['LeaderboardUrl'])}"
     runTimeDelta = duration_delta(record["Duration"])
     runTime = format_duration(runTimeDelta)
     vidUrl = record["Participants"][0]["EvidenceLink"]
